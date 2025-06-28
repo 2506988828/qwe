@@ -3,15 +3,12 @@ package com.my.qwe.task;
 public interface ITask {
     void execute(TaskContext context) throws Exception;
 
-    default void stop() {
-        // 可选：被强制停止时回调
-    }
+    void init(TaskContext context) throws Exception;
 
-    default void pause() {
-        // 可选：暂停任务
-    }
+    /**
+     * 执行单步任务，返回true表示任务完成
+     */
+    boolean executeStep(TaskContext context) throws Exception;
 
-    default void resume() {
-        // 可选：恢复任务
-    }
+    void cleanup(TaskContext context) throws Exception;
 }

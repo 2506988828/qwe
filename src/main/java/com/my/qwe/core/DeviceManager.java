@@ -8,44 +8,56 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class DeviceManager {
 
+    private static final Map<String, Thread> threadMap = new ConcurrentHashMap<>();
     private static final Map<String, DeviceTask> taskMap = new ConcurrentHashMap<>();
 
     public static void startTask(String deviceId, ITask task, TaskContext context) {
-        if (taskMap.containsKey(deviceId)) {
-            System.out.println("设备 " + deviceId + " 的任务已在运行中");
-            return;
+        if (isRunning(deviceId)) {
+            System.out.println("设备 " + deviceId + " 任务已在运行，不能重复启动");
+            return; // 任务已经在运行，拒绝启动
         }
+        // 正常启动
         DeviceTask deviceTask = new DeviceTask(deviceId, task, context);
+        Thread thread = new Thread(deviceTask, "DeviceTask-" + deviceId);
+        threadMap.put(deviceId, thread);
         taskMap.put(deviceId, deviceTask);
-        deviceTask.start();
+
+        thread.start();
     }
 
-    public static void stopTask(String deviceId) {
-        DeviceTask task = taskMap.remove(deviceId);
-        if (task != null) {
-            task.stopTask();
-        }
-    }
 
     public static void pauseTask(String deviceId) {
         DeviceTask task = taskMap.get(deviceId);
         if (task != null) {
-            task.pauseTask();
+            task.pause();
         }
     }
 
     public static void resumeTask(String deviceId) {
         DeviceTask task = taskMap.get(deviceId);
         if (task != null) {
-            task.resumeTask();
+            task.resume();
         }
     }
 
+    public static void stopTask(String deviceId) {
+        DeviceTask task = taskMap.remove(deviceId);
+        Thread thread = threadMap.remove(deviceId);
+
+        if (task != null) {
+            task.stop();
+        }
+        if (thread != null) {
+            try {
+                thread.join(2000);
+            } catch (InterruptedException ignored) {
+            }
+        }
+    }
     public static boolean isRunning(String deviceId) {
-        return taskMap.containsKey(deviceId);
+        Thread thread = threadMap.get(deviceId);
+        return thread != null && thread.isAlive();
     }
 
-    public static Map<String, DeviceTask> getAllTasks() {
-        return taskMap;
-    }
+
 }

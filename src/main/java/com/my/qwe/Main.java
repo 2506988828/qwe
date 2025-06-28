@@ -1,47 +1,35 @@
 package com.my.qwe;
 
 import com.my.qwe.core.DeviceManager;
+import com.my.qwe.http.DeviceHttpClient;
+import com.my.qwe.init.AppInitializer;
+import com.my.qwe.model.DeviceInfo;
 import com.my.qwe.task.BaotuTask;
 import com.my.qwe.task.TaskContext;
 import com.my.qwe.core.TaskEventBus;
 import com.my.qwe.core.TaskStepEvent;
+import com.my.qwe.ui.MainUI;
 
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
-        // 初始化目录（确保目录存在）
-        com.my.qwe.init.AppInitializer.initDirectories();
+        AppInitializer.initDirectories();
 
-        // 注册事件监听打印日志
-        TaskEventBus.register(event -> System.out.println(">> [任务进度] " + event.getDeviceId() + ": " +
-                event.getStepDescription() + " (步骤 " + event.getStepIndex() + ")"));
+        // 注册任务步骤监听器，用于控制台日志（或 UI 通知）
+        TaskEventBus.register(new TaskEventBus.Listener() {
+            @Override
+            public void onStepEvent(TaskStepEvent event) {
+                System.out.println(">> [UI更新] " + event.getDeviceId()
+                        + ": 第" + event.getStepIndex() + "步 - " + event.getStepDescription());
+            }
+        });
 
-        String deviceId = "DEVICE-001";
-        BaotuTask task = new BaotuTask();
-
-        // 使用任务类型加载配置（配置文件不存在时自动创建默认）
-        TaskContext context = TaskContext.fromTaskType(deviceId, "baotu");
-
-        // 启动任务
-        DeviceManager.startTask(deviceId, task, context);
-
-        try {
-            Thread.sleep(5000);  // 任务执行一会儿
-            DeviceManager.pauseTask(deviceId);
-            System.out.println("任务已暂停");
-
-            Thread.sleep(3000);
-            DeviceManager.resumeTask(deviceId);
-            System.out.println("任务已恢复");
-
-            Thread.sleep(5000);
-            DeviceManager.stopTask(deviceId);
-            System.out.println("任务已停止");
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        // 启动主界面
+        MainUI.launch();
     }
+
 }

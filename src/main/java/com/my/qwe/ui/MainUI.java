@@ -1,55 +1,52 @@
 package com.my.qwe.ui;
 
-import com.my.qwe.core.DeviceManager;
+import com.my.qwe.http.DeviceHttpClient;
+import com.my.qwe.model.DeviceInfo;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Comparator;
+import java.util.List;
 
 public class MainUI extends JFrame {
+    private JPanel deviceContainer;
 
-
-
-    private final JPanel deviceContainer;
-    private final Map<String, DevicePanel> devicePanels = new HashMap<>();
 
     public MainUI() {
-        setTitle("设备任务管理器");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
+        setTitle("多设备控制中心");
+        setSize(1000, 800);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 
         deviceContainer = new JPanel();
-        deviceContainer.setLayout(new BoxLayout(deviceContainer, BoxLayout.Y_AXIS));
+        deviceContainer.setLayout(new GridLayout(0, 2, 10, 10));
+        add(new JScrollPane(deviceContainer), BorderLayout.CENTER);
 
-        JScrollPane scrollPane = new JScrollPane(deviceContainer);
-        add(scrollPane, BorderLayout.CENTER);
-
-        // 示例添加设备
-        addDevice("DEVICE-001");
-        addDevice("DEVICE-002");
+        loadDevices(); // 关键方法
     }
 
-    public void addDevice(String deviceId) {
-        if (devicePanels.containsKey(deviceId)) return;
+    private void loadDevices() {
+        try {
+            List<DeviceInfo> deviceList = DeviceHttpClient.getDeviceList();
 
-        DevicePanel panel = new DevicePanel(deviceId);
-        devicePanels.put(deviceId, panel);
-        deviceContainer.add(panel);
-        deviceContainer.revalidate();
-        deviceContainer.repaint();
+            deviceList.sort(Comparator.comparing(
+                    d -> d.name == null ? "" : d.name,
+                    String.CASE_INSENSITIVE_ORDER));
+            for (DeviceInfo info : deviceList) {
+                DevicePanel panel = new DevicePanel(info);
+                deviceContainer.add(panel);
+                deviceContainer.revalidate();
+                deviceContainer.repaint();
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "加载设备失败: " + e.getMessage());
+        }
     }
 
-    public DevicePanel getDevicePanel(String deviceId) {
-        return devicePanels.get(deviceId);
-    }
-
-    public static void main(String[] args) {
+    public static void launch() {
         SwingUtilities.invokeLater(() -> {
             MainUI ui = new MainUI();
             ui.setVisible(true);
         });
-
     }
 }

@@ -14,10 +14,11 @@ public class TaskConfigLoader {
      * 读取指定设备和任务类型的配置文件。
      * 如果配置文件不存在，会自动创建一个默认配置文件并返回默认配置。
      */
-    public static Map<String, Object> loadConfig(String deviceId, String taskType) {
+    public static Map<String, Object> loadConfig(String name, String taskType) {
         try {
             String configDir = ConfigUtil.getConfigDir();
-            File configFile = new File(configDir, deviceId + "_" + taskType + ".json");
+            File configFile = new File(configDir, name + "_" + taskType + ".json");
+
 
             if (!configFile.exists()) {
                 System.out.println("配置文件不存在，自动创建默认配置文件：" + configFile.getAbsolutePath());
@@ -39,6 +40,8 @@ public class TaskConfigLoader {
             return null;
         }
     }
+
+
 
     /**
      * 根据任务类型创建默认配置（示例，按需修改）

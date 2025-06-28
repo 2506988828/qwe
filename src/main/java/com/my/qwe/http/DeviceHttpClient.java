@@ -1,158 +1,440 @@
 package com.my.qwe.http;
 
+import com.my.qwe.model.DeviceInfo;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.sql.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
-import java.util.Scanner;
 
+/**
+ * 设备相关 HTTP 接口客户端封装
+ * 调用本地设备管理服务，支持设备列表、截图、查图、OCR、点击等操作
+ */
 public class DeviceHttpClient {
 
-    private final String baseUrl;
-    private final String deviceId;
+    private static final String API_URL = "http://127.0.0.1:9912/api";
 
-    public DeviceHttpClient(String baseUrl, String deviceId) {
-        this.baseUrl = baseUrl;
-        this.deviceId = deviceId;
-    }
 
-    private String postJson(String endpoint, JSONObject json) throws IOException {
-        URL url = new URL(baseUrl + endpoint);
-        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
 
-        byte[] data = json.toString().getBytes(StandardCharsets.UTF_8);
-        conn.getOutputStream().write(data);
 
-        try (Scanner scanner = new Scanner(conn.getInputStream(), StandardCharsets.UTF_8.name())) {
-            StringBuilder sb = new StringBuilder();
-            while (scanner.hasNextLine()) {
-                sb.append(scanner.nextLine());
-            }
-            return sb.toString();
+
+    /**
+     * 获取设备列表
+     * @return 设备信息列表
+     * @throws IOException 网络或接口异常
+     */
+    public static List<DeviceInfo> getDeviceList() throws IOException {
+        JSONObject req = new JSONObject();
+        req.put("fun", "get_device_list");
+        req.put("msgid", 0);
+        req.put("data", new JSONObject());
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("获取设备列表失败：" + resp.optString("message"));
         }
-    }
 
-    public List<int[]> findImage(String imageName, double similarity) throws IOException {
-        JSONObject req = new JSONObject();
-        req.put("fun", "find_image");
-        req.put("msgid", 0);
-        JSONObject data = new JSONObject();
-        data.put("deviceid", deviceId);
-        JSONArray imgList = new JSONArray();
-        JSONObject imgObj = new JSONObject();
-        imgObj.put("img_name", imageName);
-        imgObj.put("similar", similarity);
-        imgList.put(imgObj);
-        data.put("img_list", imgList);
-        req.put("data", data);
+        JSONObject data = resp.getJSONObject("data");
+        List<DeviceInfo> devices = new ArrayList<>();
 
-        String resp = postJson("/api/find_image", req);
-        JSONObject jsonResp = new JSONObject(resp);
-
-        List<int[]> coords = new ArrayList<>();
-        if (jsonResp.has("data")) {
-            JSONArray arr = jsonResp.getJSONObject("data").optJSONArray("position_list");
-            if (arr != null) {
-                for (int i = 0; i < arr.length(); i++) {
-                    JSONArray pos = arr.getJSONArray(i);
-                    int x = pos.getInt(0);
-                    int y = pos.getInt(1);
-                    coords.add(new int[]{x, y});
-                }
-            }
+        for (String key : data.keySet()) {
+            JSONObject d = data.getJSONObject(key);
+            DeviceInfo info = new DeviceInfo();
+            info.deviceId = d.optString("deviceid");
+            info.deviceName = d.optString("device_name");
+            info.ip = d.optString("ip");
+            info.username = d.optString("username");
+            info.model = d.optString("model");
+            info.state = d.optInt("state");
+            info.width = d.optString("width");
+            info.height = d.optString("height");
+            info.name = d.optString("name");
+            devices.add(info);
         }
-        return coords;
+
+        return devices;
     }
 
-    public boolean click(int x, int y) throws IOException {
-        JSONObject req = new JSONObject();
-        req.put("fun", "click");
-        req.put("msgid", 0);
+    /**
+     * 获取设备屏幕截图，返回base64格式的图片字符串（JPEG格式）
+     * @param deviceId 设备ID
+     * @return Base64编码的图片字符串
+     * @throws IOException 网络或接口异常
+     */
+    public static String getScreenshot(String deviceId) throws IOException {
         JSONObject data = new JSONObject();
         data.put("deviceid", deviceId);
-        data.put("x", x);
-        data.put("y", y);
-        req.put("data", data);
+        data.put("isjpg", true);
+        data.put("original", false);
+        data.put("gzip", false);
+        data.put("binary", false);
 
-        String resp = postJson("/api/click", req);
-        JSONObject jsonResp = new JSONObject(resp);
-        return jsonResp.optInt("code", -1) == 0;
-    }
-
-    public boolean moveMouse(int x, int y) throws IOException {
-        JSONObject req = new JSONObject();
-        req.put("fun", "move_mouse");
-        req.put("msgid", 0);
-        JSONObject data = new JSONObject();
-        data.put("deviceid", deviceId);
-        data.put("x", x);
-        data.put("y", y);
-        req.put("data", data);
-
-        String resp = postJson("/api/move_mouse", req);
-        JSONObject jsonResp = new JSONObject(resp);
-        return jsonResp.optInt("code", -1) == 0;
-    }
-
-    public String ocrRecognize(int x, int y, int width, int height) throws IOException {
-        JSONObject req = new JSONObject();
-        req.put("fun", "ocr");
-        req.put("msgid", 0);
-        JSONObject data = new JSONObject();
-        data.put("deviceid", deviceId);
-        data.put("x", x);
-        data.put("y", y);
-        data.put("width", width);
-        data.put("height", height);
-        req.put("data", data);
-
-        String resp = postJson("/api/ocr", req);
-        JSONObject jsonResp = new JSONObject(resp);
-        if (jsonResp.has("data")) {
-            return jsonResp.getJSONObject("data").optString("text", "");
-        }
-        return "";
-    }
-
-    public byte[] getDeviceScreenshot(boolean gzip, boolean binary, boolean isJpg, boolean original) throws IOException {
         JSONObject req = new JSONObject();
         req.put("fun", "get_device_screenshot");
         req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("截图失败：" + resp.optString("message"));
+        }
+
+        return resp.getJSONObject("data").optString("img");
+    }
+
+    /**
+     * 在指定区域查找图片
+     * @param deviceId 设备ID
+     * @param rect 查找区域，二维数组 [[x1,y1],[x2,y2],...]
+     * @param filename 图片文件路径
+     * @param similarity 匹配相似度阈值，0~1之间
+     * @return 匹配到的第一个坐标[x,y]
+     * @throws IOException 网络或接口异常，或者未找到匹配图片
+     */
+    public static int[] findImage(String deviceId, int[][] rect, String filename, double similarity) throws IOException {
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("rect", toJSONArray(rect));
+        data.put("filename", filename);
+        data.put("similarity", similarity);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "find_image");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("查找图片失败：" + resp.optString("message"));
+        }
+
+        JSONArray pos = resp.getJSONObject("data").optJSONArray("pos");
+        if (pos == null || pos.length() < 2) {
+            throw new IOException("未找到匹配图片位置");
+        }
+
+        return new int[]{pos.getInt(0), pos.getInt(1)};
+    }
+    /**
+     * 在指定区域查找图片
+     * @param deviceId 设备ID
+     * @param filename 图片文件路径
+     * @param similarity 匹配相似度阈值，0~1之间
+     * @return 匹配到的第一个坐标[x,y]
+     * @throws IOException 网络或接口异常，或者未找到匹配图片
+     */
+    public static int[] findImage(String deviceId, String filename, double similarity) throws IOException {
+
+
+        byte[] imageBytes = Files.readAllBytes(Paths.get(filename));
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+
+
 
         JSONObject data = new JSONObject();
         data.put("deviceid", deviceId);
-        data.put("gzip", gzip);
-        data.put("binary", binary);
-        data.put("isjpg", isJpg);
-        data.put("original", original);
 
+
+        data.put("img", base64Image);
+        data.put("similarity", similarity);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "find_image");
+        req.put("msgid", 0);
         req.put("data", data);
 
-        String resp = postJson("/api/get_device_screenshot", req);
-        JSONObject jsonResp = new JSONObject(resp);
 
-        int status = jsonResp.optInt("status", -1);
-        if (status != 0) {
-            String message = jsonResp.optString("message", "未知错误");
-            throw new IOException("截屏失败，错误码：" + status + "，信息：" + message);
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+
+
+        if (resp.getInt("status")!=0) {
+            System.out.println("查找失败");
         }
 
-        JSONObject respData = jsonResp.getJSONObject("data");
-        String base64Img = respData.optString("img", null);
-        if (base64Img == null) {
-            throw new IOException("截屏失败，未返回图片数据");
+
+        JSONArray ja1= resp.getJSONObject("data").getJSONArray("result");
+        int[] result = new int[ja1.length()];
+        for (int i = 0; i < ja1.length(); i++) {
+            result[i] = ja1.getInt(i); // 自动处理类型转换
         }
 
-        // 解码base64字符串为字节数组（图片数据）
-        return Base64.getDecoder().decode(base64Img);
+
+
+        return result;
     }
+
+    /*查找多张图片*/
+
+    public static JSONObject findImages(String deviceId, String imageFilename,String img2, double similarity) {
+
+        String imgPath = "D:\\myapp\\images\\"+imageFilename+".bmp";
+        String imgPath2 = "D:\\myapp\\images\\"+img2+".bmp";
+        try {
+            JSONObject request = new JSONObject();
+            request.put("fun", "find_image_ex");
+            request.put("msgid", 0);
+
+            // 准备图片Base64字符串
+            byte[] imageBytes = Files.readAllBytes(Paths.get(imgPath));
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+
+            byte[] imageBytes2 = Files.readAllBytes(Paths.get(imgPath2));
+            String base64Image2 = Base64.getEncoder().encodeToString(imageBytes2);
+
+            JSONArray ja= new JSONArray().put(base64Image);
+            ja.put(base64Image2);
+            System.out.println("到这了");
+            // 构建请求数据
+            JSONObject data = new JSONObject();
+            data.put("deviceid", deviceId);
+            data.put("img_list", ja);
+            data.put("all", false); // false表示找到一张就返回
+            data.put("repeat", false); // 是否查找重复图片
+
+            data.put("similarity", similarity);
+
+            request.put("data", data);
+
+            System.out.println(request.toString());
+
+
+
+            // 发送请求并获取响应
+            JSONObject resp = HttpJsonClient.post(API_URL, request);
+
+            System.out.println(resp.toString());
+            return resp;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * 对指定区域执行OCR识别，返回识别文字
+     * @param deviceId 设备ID
+     * @param rect 识别区域，格式 [x, y, width, height]
+     * @return 识别出的文字
+     * @throws IOException 网络或接口异常
+     */
+    public static String ocr(String deviceId, int[] rect) throws IOException {
+        JSONObject data = new JSONObject();
+        JSONArray rectArray = new JSONArray();
+        rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[1])));  // 左上角
+        rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[3])));  // 左下角
+        rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[1])));  // 右上角
+        rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[3])));  // 右下角
+
+        data.put("deviceid", deviceId);
+        data.put("rect", new JSONArray(rectArray));
+
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "ocr");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+
+
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("OCR识别失败：" + resp.optString("message"));
+        }
+
+        return resp.getJSONObject("data").getJSONArray("list").getJSONObject(0).getString("txt");
+    }
+
+    /**
+     * 点击屏幕指定坐标
+     * @param deviceId 设备ID
+     * @param x X坐标
+     * @param y Y坐标
+     * @throws IOException 网络或接口异常
+     */
+    public static void tap(String deviceId, int x, int y) throws IOException {
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("x", x);
+        data.put("y", y);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "tap");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("点击操作失败：" + resp.optString("message"));
+        }
+    }
+
+    /**
+     * 滑动操作
+     * @param deviceId 设备ID
+     * @param x1 起点X坐标
+     * @param y1 起点Y坐标
+     * @param x2 终点X坐标
+     * @param y2 终点Y坐标
+     * @param duration 持续时间，单位毫秒
+     * @throws IOException 网络或接口异常
+     */
+    public static void swipe(String deviceId, int x1, int y1, int x2, int y2, int duration) throws IOException {
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("x1", x1);
+        data.put("y1", y1);
+        data.put("x2", x2);
+        data.put("y2", y2);
+        data.put("duration", duration);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "swipe");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("滑动操作失败：" + resp.optString("message"));
+        }
+    }
+
+    /**
+     * 获取裁剪区域图片，返回base64编码的图片字符串
+     * @param deviceId 设备ID
+     * @param rect 裁剪区域 [x,y,width,height]
+     * @return Base64编码图片字符串
+     * @throws IOException 网络或接口异常
+     */
+    public static String getCropImage(String deviceId, int[] rect) throws IOException {
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("rect", new JSONArray(rect));
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "get_crop_image");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("获取裁剪图片失败：" + resp.optString("message"));
+        }
+
+        return resp.getJSONObject("data").optString("img");
+    }
+
+    /**
+     * 工具方法：将二维int数组转成JSONArray嵌套数组
+     * @param arr 二维数组
+     * @return JSONArray对象
+     */
+    private static JSONArray toJSONArray(int[][] arr) {
+        JSONArray jsonArray = new JSONArray();
+        for (int[] subArr : arr) {
+            JSONArray subJson = new JSONArray();
+            for (int val : subArr) {
+                subJson.put(val);
+            }
+            jsonArray.put(subJson);
+        }
+        return jsonArray;
+    }
+
+    /**
+     * 模拟鼠标单击操作
+     * @param deviceId 设备ID
+     * @param button 鼠标按键，"left" 或 "right"，不填默认为 "left"
+     * @param x 屏幕X坐标
+     * @param y 屏幕Y坐标
+     * @param time 按下和弹起的间隔时间，0或不填表示由设备自动完成单击
+     * @throws IOException 网络或接口异常
+     */
+    public static void click(String deviceId, String button, int x, int y, int time) throws IOException {
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("button", button == null || button.isEmpty() ? "left" : button);
+        data.put("x", x);
+        data.put("y", y);
+        data.put("time", time);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "click");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("鼠标单击失败：" + resp.optString("message"));
+        }
+    }
+
+
+    public static String getScreenshotBase64(String deviceId) {
+        // 构造请求 JSON
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("gzip", false);
+        data.put("binary", false);
+        data.put("isjpg", true);
+        data.put("original", false);
+
+        JSONObject request = new JSONObject();
+        request.put("fun", "get_device_screenshot");
+        request.put("msgid", 0);
+        request.put("data", data);
+
+        try {
+            // 发送 HTTP 请求
+            JSONObject response = HttpJsonClient.post(API_URL, request);
+
+            if (response.getInt("status") == 0) {
+                String img = response.getJSONObject("data").getString("img");
+
+                // 去除 data:image/jpeg;base64, 前缀（如果有）
+                if (img.contains(",")) {
+                    img = img.substring(img.indexOf(",") + 1);
+                }
+
+                // 去掉空格或换行
+                img = img.replaceAll("\\s+", "");
+
+                return img;
+            } else {
+                System.err.println("截图失败：" + response.optString("message"));
+                return null;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+
+
+
 }

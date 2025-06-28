@@ -1,52 +1,39 @@
 package com.my.qwe.task;
 
-import com.my.qwe.task.config.TaskConfigLoader;
-
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TaskContext {
-
     private final String deviceId;
-    private final Map<String, Object> config;
-    private boolean debugMode = false;
+    private final String name;
+    private final Map<String, Object> params = new ConcurrentHashMap<>();
 
-    // 私有构造器，外部不直接调用
-    public TaskContext(String deviceId, Map<String, Object> config) {
+    public TaskContext(String deviceId, Map<String, Object> initialParams, String name) {
         this.deviceId = deviceId;
-        this.config = config;
+        this.name = name;
+        if (initialParams != null) {
+            this.params.putAll(initialParams);
+        }
     }
-
-    // 静态工厂方法：从配置Map构造
-    public static TaskContext fromConfigMap(String deviceId, Map<String, Object> config) {
-        return new TaskContext(deviceId, config);
-    }
-
-    // 静态工厂方法：从任务类型加载配置构造
-    public static TaskContext fromTaskType(String deviceId, String taskType) {
-        Map<String, Object> config = TaskConfigLoader.loadConfig(deviceId, taskType);
-        return new TaskContext(deviceId, config);
-    }
-
-    // Getter和Setter
 
     public String getDeviceId() {
         return deviceId;
     }
 
-    public Map<String, Object> getConfig() {
-        return config;
+    public String getName(){
+        return name;
     }
 
-    public Object get(String key) {
-        if (config == null) return null;
-        return config.get(key);
+    public Object getParam(String key) {
+        return params.get(key);
     }
 
-    public boolean isDebugMode() {
-        return debugMode;
+    public void setParam(String key, Object value) {
+        params.put(key, value);
     }
 
-    public void setDebugMode(boolean debugMode) {
-        this.debugMode = debugMode;
+    public void log(String message) {
+
+        TaskStepNotifier.notifyStep(deviceId, message);
     }
 }

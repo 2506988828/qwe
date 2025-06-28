@@ -1,7 +1,7 @@
 package com.my.qwe.core;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 public class TaskEventBus {
 
@@ -9,17 +9,13 @@ public class TaskEventBus {
         void onStepEvent(TaskStepEvent event);
     }
 
-    private static final List<Listener> listeners = new CopyOnWriteArrayList<>();
+    private static final List<Listener> listeners = new ArrayList<>();
 
     public static void register(Listener listener) {
         listeners.add(listener);
     }
 
-    public static void unregister(Listener listener) {
-        listeners.remove(listener);
-    }
-
-    public static void publish(TaskStepEvent event) {
+    public static void post(TaskStepEvent event) {
         for (Listener listener : listeners) {
             listener.onStepEvent(event);
         }
