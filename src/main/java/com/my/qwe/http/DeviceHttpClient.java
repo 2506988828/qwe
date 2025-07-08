@@ -67,6 +67,76 @@ public class DeviceHttpClient {
         return devices;
     }
 
+    // 其他已有方法...
+
+    /**
+     * 多点找色
+     * @param deviceId 设备ID
+     * @param x1 区域左上角的X坐标
+     * @param y1 区域左上角的Y坐标
+     * @param x2 区域右下角的X坐标
+     * @param y2 区域右下角的Y坐标
+     * @param firstColor 要查找的首色，格式为 "RRGGBB-DRDGDB|..."
+     * @param offsetColor 偏移色，多个颜色格式 "RRGGBB-DRDGDB|..."
+     * @param similarity 匹配相似度阈值（0~1）
+     * @param dir 查找方向 (0:从左到右, 1:从左到右从下到上, 2:从右到左从上到下, 3:从右到左从下到上)
+     * @return 查找结果，坐标数组 [x, y] 或错误信息
+     * @throws IOException 网络或接口异常
+     */
+    public static JSONObject findMultiColor(String deviceId, int x1, int y1, int x2, int y2, String firstColor, String offsetColor, double similarity, int dir) throws IOException {
+        // 构造请求数据
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("x1", x1);
+        data.put("y1", y1);
+        data.put("x2", x2);
+        data.put("y2", y2);
+        data.put("first_color", firstColor);
+        data.put("offset_color", offsetColor);
+        data.put("similarity", similarity);
+        data.put("dir", dir);
+
+        // 构建请求体
+        JSONObject req = new JSONObject();
+        req.put("fun", "find_multi_color");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        // 发送请求并获取返回结果
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        // 检查接口返回状态
+        if (resp.optInt("status", -1) != 0) {
+            // 返回失败信息
+            throw new IOException("查找多点颜色失败: " + resp.optString("message"));
+        }
+
+        // 获取数据部分
+        JSONObject dataResp = resp.optJSONObject("data");
+        if (dataResp == null || dataResp.optInt("code", 1) != 0) {
+            // 如果code不为0，说明查找颜色失败
+            throw new IOException("颜色查找失败，设备ID: " + deviceId + ", 错误信息: " + resp.optString("message"));
+        }
+
+        // 如果返回结果包含坐标
+        JSONArray result = dataResp.optJSONArray("result");
+        if (result != null && result.length() == 2) {
+            int x = result.getInt(0);
+            int y = result.getInt(1);
+
+            if (x == -1 && y == -1) {
+                // 如果返回坐标是 -1,-1，表示没有找到颜色
+                throw new IOException("未找到匹配颜色，设备ID: " + deviceId);
+            }
+
+            System.out.println("找到颜色，坐标: (" + x + ", " + y + ")");
+            return dataResp; // 返回成功的查找结果
+        } else {
+            // 如果没有返回坐标
+            throw new IOException("未找到匹配颜色，设备ID: " + deviceId);
+        }
+    }
+
     /**
      * 获取设备屏幕截图，返回base64格式的图片字符串（JPEG格式）
      * @param deviceId 设备ID
@@ -250,11 +320,12 @@ public class DeviceHttpClient {
         req.put("data", data);
 
 
+        System.out.println(req.toString());
 
 
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 
-
+        System.out.println(resp.toString());
 
         if (resp.optInt("status", -1) != 0) {
             throw new IOException("OCR识别失败：" + resp.optString("message"));
