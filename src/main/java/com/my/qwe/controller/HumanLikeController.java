@@ -37,17 +37,24 @@ public class HumanLikeController {
         }
     }*/
 
-    private Point applyRandomOffset(int x, int y) {
-        int actualX = x + (int) (Math.random() * clickOffsetX * 2) - clickOffsetX;
-        int actualY = y + (int) (Math.random() * clickOffsetY * 2) - clickOffsetY;
+    private Point applyRandomOffset(int x, int y ,int xp , int yp) {
+        int actualX = x + (int) (Math.random() * xp * 2) - xp;
+        int actualY = y + (int) (Math.random() * yp * 2) - yp;
         return new Point(actualX, actualY);
     }
 
     // 模拟点击操作
     public void click(String deviceId, int x, int y) throws IOException {
-        Point actual = applyRandomOffset(x, y);
-        DeviceHttpClient.click(deviceId, "left", actual.x, actual.y, 0);
+
+        DeviceHttpClient.click(deviceId, "left", x, y);
     }
+    //坐标加减随机数后点击
+    public void click(String deviceId, int x, int y, int xp, int yp) throws IOException {
+        Point actual = applyRandomOffset(x, y, xp, yp);
+        DeviceHttpClient.click(deviceId, "left", actual.x, actual.y);
+    }
+
+
 
     // 在全屏寻找图片，并点击
     public void clickImg(String deviceId, String filename) {

@@ -1,6 +1,9 @@
 package com.my.qwe.http;
 
 import com.my.qwe.model.DeviceInfo;
+import org.bytedeco.javacpp.BytePointer;
+import org.bytedeco.javacpp.indexer.FloatIndexer;
+import org.bytedeco.opencv.opencv_core.Mat;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -12,10 +15,13 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
+
+import static org.bytedeco.opencv.global.opencv_core.CV_32FC1;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.*;
+import static org.bytedeco.opencv.global.opencv_imgcodecs.IMREAD_COLOR;
+import static org.bytedeco.opencv.global.opencv_imgproc.TM_CCOEFF_NORMED;
+import static org.bytedeco.opencv.global.opencv_imgproc.matchTemplate;
 
 /**
  * 设备相关 HTTP 接口客户端封装
@@ -83,7 +89,9 @@ public class DeviceHttpClient {
      * @return 查找结果，坐标数组 [x, y] 或错误信息
      * @throws IOException 网络或接口异常
      */
-    public static JSONObject findMultiColor(String deviceId, int x1, int y1, int x2, int y2, String firstColor, String offsetColor, double similarity, int dir) throws IOException {
+    public static int[] findMultiColor(String deviceId, int x1, int y1, int x2, int y2,
+                                       String firstColor, String offsetColor,
+                                       double similarity, int dir) throws IOException {
         // 构造请求数据
         JSONObject data = new JSONObject();
         data.put("deviceid", deviceId);
@@ -102,40 +110,29 @@ public class DeviceHttpClient {
         req.put("msgid", 0);
         req.put("data", data);
 
-        // 发送请求并获取返回结果
+        // 发送请求
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 
-        // 检查接口返回状态
+        // 检查 HTTP 接口返回状态
         if (resp.optInt("status", -1) != 0) {
-            // 返回失败信息
-            throw new IOException("查找多点颜色失败: " + resp.optString("message"));
+            throw new IOException("查找多点颜色接口调用失败: " + resp.optString("message"));
         }
 
-        // 获取数据部分
+        // 获取 data 部分
         JSONObject dataResp = resp.optJSONObject("data");
-        if (dataResp == null || dataResp.optInt("code", 1) != 0) {
-            // 如果code不为0，说明查找颜色失败
+        /*if (dataResp == null || dataResp.optInt("code", 1) != 0) {
             throw new IOException("颜色查找失败，设备ID: " + deviceId + ", 错误信息: " + resp.optString("message"));
-        }
+        }*/
 
-        // 如果返回结果包含坐标
+        // 提取结果坐标
         JSONArray result = dataResp.optJSONArray("result");
-        if (result != null && result.length() == 2) {
+
             int x = result.getInt(0);
             int y = result.getInt(1);
+            return new int[]{x, y};
 
-            if (x == -1 && y == -1) {
-                // 如果返回坐标是 -1,-1，表示没有找到颜色
-                throw new IOException("未找到匹配颜色，设备ID: " + deviceId);
-            }
-
-            System.out.println("找到颜色，坐标: (" + x + ", " + y + ")");
-            return dataResp; // 返回成功的查找结果
-        } else {
-            // 如果没有返回坐标
-            throw new IOException("未找到匹配颜色，设备ID: " + deviceId);
-        }
     }
+
 
     /**
      * 获取设备屏幕截图，返回base64格式的图片字符串（JPEG格式）
@@ -438,15 +435,17 @@ public class DeviceHttpClient {
      * @param button 鼠标按键，"left" 或 "right"，不填默认为 "left"
      * @param x 屏幕X坐标
      * @param y 屏幕Y坐标
-     * @param time 按下和弹起的间隔时间，0或不填表示由设备自动完成单击
+     *
      * @throws IOException 网络或接口异常
      */
-    public static void click(String deviceId, String button, int x, int y, int time) throws IOException {
+    public static void click(String deviceId, String button, int x, int y) throws IOException {
+
         JSONObject data = new JSONObject();
         data.put("deviceid", deviceId);
         data.put("button", button == null || button.isEmpty() ? "left" : button);
         data.put("x", x);
         data.put("y", y);
+        int time = (int)(Math.random() * 301);
         data.put("time", time);
 
         JSONObject req = new JSONObject();
@@ -500,6 +499,95 @@ public class DeviceHttpClient {
             e.printStackTrace();
             return null;
         }
+    }
+
+    //在整个屏幕找所有符合图片的坐标点
+/*
+    调用方式
+    List<int[]>toal = DeviceHttpClient.findAllMatches(deviceId,"D:\\myapp\\images\\shuzi4.bmp", 0.8F,10);
+
+        for (int[] arr : toal) {
+        System.out.println(Arrays.toString(arr));
+    }*/
+    public static List<int[]> findAllMatches(String deviceId, String templateImagePath, float threshold, int minDistance) {
+        try {
+            // 1. 构造HTTP请求获取截图
+            JSONObject data = new JSONObject();
+            data.put("deviceid", deviceId);
+            data.put("gzip", false);
+            data.put("binary", false);
+            data.put("isjpg", true);
+            data.put("original", false);
+
+            JSONObject req = new JSONObject();
+            req.put("fun", "get_device_screenshot");
+            req.put("msgid", 0);
+            req.put("data", data);
+
+            JSONObject resp = HttpJsonClient.post(API_URL, req);
+            if (resp.getInt("status") != 0) {
+                System.err.println("截图失败：" + resp.optString("message"));
+                return new ArrayList<>();
+            }
+
+            // 2. base64 解码为 Mat
+            String base64 = resp.getJSONObject("data").getString("img");
+            byte[] decoded = Base64.getMimeDecoder().decode(base64);
+            Mat screenMat = imdecode(new Mat(new BytePointer(decoded)), IMREAD_COLOR);
+            if (screenMat.empty()) {
+                System.err.println("设备截图解码失败");
+                return new ArrayList<>();
+            }
+
+            // 3. 读取模板图
+            Mat template = imread(templateImagePath, IMREAD_COLOR);
+            if (template.empty()) {
+                System.err.println("模板图片读取失败：" + templateImagePath);
+                return new ArrayList<>();
+            }
+            System.out.println(templateImagePath);
+
+            // 4. 模板匹配
+            int resultCols = screenMat.cols() - template.cols() + 1;
+            int resultRows = screenMat.rows() - template.rows() + 1;
+            Mat result = new Mat(resultRows, resultCols, CV_32FC1);
+            matchTemplate(screenMat, template, result, TM_CCOEFF_NORMED);
+
+            // 5. 遍历所有位置，找到符合的点
+            FloatIndexer indexer = result.createIndexer();
+            List<int[]> points = new ArrayList<>();
+
+            for (int y = 0; y < result.rows(); y++) {
+                for (int x = 0; x < result.cols(); x++) {
+                    float score = indexer.get(y, x);
+                    if (score >= threshold) {
+                        int centerX = x + template.cols() / 2;
+                        int centerY = y + template.rows() / 2;
+                        int[] candidate = new int[]{centerX, centerY};
+                        if (!isTooClose(candidate, points, minDistance)) {
+                            points.add(candidate);
+                        }
+                    }
+                }
+            }
+            indexer.release();
+
+            return points;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+    }
+
+    // 判断当前点是否离已匹配点太近（避免重复）
+    private static boolean isTooClose(int[] p, List<int[]> existing, int minDist) {
+        for (int[] ep : existing) {
+            double dx = p[0] - ep[0];
+            double dy = p[1] - ep[1];
+            if (Math.sqrt(dx * dx + dy * dy) < minDist) return true;
+        }
+        return false;
     }
 
 
