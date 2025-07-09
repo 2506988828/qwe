@@ -8,7 +8,7 @@ public class TaskContext {
     private final String name;
     private final Map<String, Object> params = new ConcurrentHashMap<>();
 
-    public TaskContext(String deviceId, Map<String, Object> initialParams, String name) {
+    public TaskContext(String deviceId, Map<String, Map<String, String>> initialParams, String name) {
         this.deviceId = deviceId;
         this.name = name;
         if (initialParams != null) {

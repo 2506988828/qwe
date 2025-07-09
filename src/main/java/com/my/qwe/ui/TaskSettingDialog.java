@@ -20,7 +20,7 @@ public class TaskSettingDialog extends JDialog {
         setSize(600, 500);
         setLocationRelativeTo(parent);
 
-        taskTypeBox = new JComboBox<>(new String[]{"Baotu", "Shimen", "Datu"});
+        taskTypeBox = new JComboBox<>(new String[]{"打图", "师门", "挖图"});
 
         JButton loadBtn = new JButton("读取配置文件");
         JButton saveBtn = new JButton("保存配置文件");

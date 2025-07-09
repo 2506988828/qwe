@@ -6,6 +6,8 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpExchange;
@@ -30,7 +32,8 @@ public class DeviceHttpServer {
             // 检查请求方法
             if ("POST".equals(exchange.getRequestMethod())) {
                 // 读取请求体 (请求可以是空的，主要是触发接口)
-                String requestBody = new String(exchange.getRequestBody().readAllBytes());
+                String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+
 
                 // 如果接口是“get_device_list”，我们模拟设备列表返回
                 if (requestBody.contains("\"fun\":\"get_device_list\"")) {
@@ -64,14 +67,14 @@ public class DeviceHttpServer {
             for (int i = 1; i <= 5; i++) {
                 JSONObject device = new JSONObject();
                 device.put("deviceid", "00:1A:2B:3C:4D:5" + i);
-                device.put("device_name", "设备" + i);
+                device.put("device_name", "dev" + i);
                 device.put("ip", "192.168.1." + (100 + i));
                 device.put("username", "user" + i);
                 device.put("model", "Model" + i);
                 device.put("state", 1);  // 假设设备状态为正常
                 device.put("width", "1920");
                 device.put("height", "1080");
-                device.put("name", "设备" + i);
+                device.put("name", "dev" + i);
 
                 data.put("device" + i, device);  // 模拟多个设备信息
             }

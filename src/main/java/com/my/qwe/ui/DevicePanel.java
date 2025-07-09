@@ -86,7 +86,7 @@ public class DevicePanel extends JPanel {
                 return;
         }
 
-        Map<String, Object> config = TaskConfigLoader.loadConfig(deviceInfo.name, selected.toLowerCase());
+        Map<String, Map<String, String>> config = TaskConfigLoader.loadConfig(deviceInfo.name, selected.toLowerCase());
         TaskContext context = new TaskContext(deviceInfo.deviceId, config,deviceInfo.name);
 
         DeviceManager.startTask(deviceInfo.deviceId, task, context);

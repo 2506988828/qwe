@@ -8,7 +8,7 @@ import com.my.qwe.util.JsonUtil;
 import java.util.Map;
 
 public class FentuTask implements ITask {
-    private Map<String, Object> config; // 存储从配置文件加载的任务配置
+    private Map<String, Map<String, String>> config; // 存储从配置文件加载的任务配置
 
 
     //执行分图操作

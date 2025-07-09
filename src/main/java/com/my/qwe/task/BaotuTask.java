@@ -11,7 +11,7 @@ import java.util.Map;
 public class BaotuTask implements ITask {
 
     private int step = 0; // 记录任务的步骤
-    private Map<String, Object> config; // 存储从配置文件加载的任务配置
+    private Map<String, Map<String, String>> config; // 存储从配置文件加载的任务配置
 
 
     @Override
@@ -19,6 +19,7 @@ public class BaotuTask implements ITask {
         // 从配置文件加载任务参数
 
         this.config = TaskConfigLoader.loadConfig(context.getName(), "baotu");
+
         // 执行任务的入口
         while (!executeStep(context)) {
             // 如果未完成，继续执行
