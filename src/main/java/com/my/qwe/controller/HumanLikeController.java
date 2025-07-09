@@ -9,13 +9,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 public class HumanLikeController {
-    private static final String CONFIG_PATH = "D:/myapp/config/human_config.ini";
+    private static final String CONFIG_PATH = "D:/myapp/config/config.ini";
 
     // 配置参数
     private static int clickOffsetX = 0;
     private static int clickOffsetY = 0;
 
-    static {
+    /*static {
         try {
             File configFile = new File(CONFIG_PATH);
             if (!configFile.exists()) {
@@ -26,16 +26,16 @@ public class HumanLikeController {
             ini.getConfig().setFileEncoding(StandardCharsets.UTF_8);
 
             // 从默认节读取中文键
-            clickOffsetX = ini.get("默认", "点击偏移X", Integer.class);  // 返回 Integer 类型
+            clickOffsetX = ini.get("人性化", "点击偏移X", Integer.class);  // 返回 Integer 类型
 
-            clickOffsetY = ini.get("默认", "点击偏移Y", Integer.class);  // 返回 Integer 类型
+            clickOffsetY = ini.get("人性化", "点击偏移Y", Integer.class);  // 返回 Integer 类型
 
 
-            System.out.printf("[HumanLikeController] 加载配置成功：点击偏移X=%d，点击偏移Y=%d%n", clickOffsetX, clickOffsetY);
+            System.out.printf("human加载配置成功：");
         } catch (Exception e) {
-            throw new RuntimeException("加载人性化配置失败，请检查配置文件：" + CONFIG_PATH, e);
+            throw new RuntimeException("加载配置失败，请检查配置文件：" + CONFIG_PATH, e);
         }
-    }
+    }*/
 
     private Point applyRandomOffset(int x, int y) {
         int actualX = x + (int) (Math.random() * clickOffsetX * 2) - clickOffsetX;

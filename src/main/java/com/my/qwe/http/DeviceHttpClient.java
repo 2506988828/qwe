@@ -313,15 +313,12 @@ public class DeviceHttpClient {
         data.put("deviceid", deviceId);
         data.put("rect", new JSONArray(rectArray));
 
-
         JSONObject req = new JSONObject();
         req.put("fun", "ocr");
         req.put("msgid", 0);
         req.put("data", data);
 
-
         System.out.println(req.toString());
-
 
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 

@@ -11,7 +11,7 @@ public class ConfigUtil {
 
     private static final String BASE_DIR = "D:/myapp";  // 或从环境变量加载
     private static final String CONFIG_DIR = BASE_DIR + "/config";
-    private static final String CONFIG_PATH = CONFIG_DIR + "/human_config.json";
+    private static final String CONFIG_PATH = CONFIG_DIR + "/human_config.ini";
 
     /**
      * 获取配置文件目录路径
@@ -56,6 +56,17 @@ public class ConfigUtil {
             return null;
         }
     }
+
+    public static int[] parseIntArray(String csv) {
+        if (csv == null || csv.isBlank()) return new int[0];
+        String[] parts = csv.split(",");
+        int[] result = new int[parts.length];
+        for (int i = 0; i < parts.length; i++) {
+            result[i] = Integer.parseInt(parts[i].trim());
+        }
+        return result;
+    }
+
 
 
     // 如果你有更多用途（比如任务记录、缓存目录等）也可以加

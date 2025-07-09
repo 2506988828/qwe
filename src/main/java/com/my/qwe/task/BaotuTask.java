@@ -1,51 +1,74 @@
 package com.my.qwe.task;
 
 import com.my.qwe.controller.HumanLikeController;
+import com.my.qwe.controller.TaskConfigController;
 import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.task.config.TaskConfigLoader;
+import com.my.qwe.util.ConfigUtil;
 import com.my.qwe.util.JsonUtil;
+import org.ini4j.Wini;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class BaotuTask implements ITask {
 
-    private int step = 0; // 记录任务的步骤
-    private Map<String, Map<String, String>> config; // 存储从配置文件加载的任务配置
+
+    Wini wini =new Wini();
+    static Wini allini = new Wini();
+
+    private TaskConfigController configController;
+    private Map<String, Map<String, String>> taskConfig;
+
 
 
     @Override
     public void execute(TaskContext context) throws Exception {
-        // 从配置文件加载任务参数
-
-        this.config = TaskConfigLoader.loadConfig(context.getName(), "baotu");
 
         // 执行任务的入口
         while (!executeStep(context)) {
             // 如果未完成，继续执行
         }
-        context.log("宝图任务执行完毕");
     }
 
     @Override
     public void init(TaskContext context) throws Exception {
 
     }
+    static {
+
+        try {
+            allini = new  Wini(new File("D:/myapp/config/config.ini"));
+            allini.getConfig().setFileEncoding(StandardCharsets.UTF_8);
+            System.out.println("全局配置加载成功");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Override
     public boolean executeStep(TaskContext context) throws Exception {
 
+        int[] ocrRect = ConfigUtil.parseIntArray(allini.get("全局", "坐标识别地图名称"));
+
+        for (int i = 0; i < ocrRect.length; i++) {
+            System.out.println(ocrRect[i]);
+        }
+
+        wini = configController.loadConfig(context.getName(), "挖图");
+        wini.getConfig().setFileEncoding(StandardCharsets.UTF_8);
+
+        System.out.println(wini);
 
         System.out.println("进入宝图任务");
 
 
         String deviceId = context.getDeviceId();
         HumanLikeController human = new HumanLikeController();
-        this.config = TaskConfigLoader.loadConfig(context.getName(), "baotu");
 
-        System.out.println("识别当前位置");
-        // 获取OCR识别区域（假设左上角有“宝象国”文字）
-        int[] ocrRect = JsonUtil.parseRect(config.get("ocrRect"));
+
 
         String locationText = DeviceHttpClient.ocr(deviceId, ocrRect);
         context.log("当前位置：" + locationText);
