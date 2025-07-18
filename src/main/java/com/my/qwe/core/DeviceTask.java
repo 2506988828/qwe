@@ -2,74 +2,62 @@ package com.my.qwe.core;
 
 import com.my.qwe.task.ITask;
 import com.my.qwe.task.TaskContext;
+import com.my.qwe.task.TaskThread;
 
-public class DeviceTask implements Runnable {
+public class DeviceTask {
     private final String deviceId;
     private final ITask task;
     private final TaskContext context;
+    private final TaskThread thread;
 
-    private volatile boolean stopped = false;
-    private volatile boolean paused = false;
-    private final Object pauseLock = new Object();
+    private String currentStep = "初始化";
+    private String threadStatus = "未开始";
+    private String taskName = "无任务";
 
-    private Thread runningThread;
-
-    public DeviceTask(String deviceId, ITask task, TaskContext context) {
+    public DeviceTask(String deviceId, ITask task, TaskContext context, TaskThread thread) {
         this.deviceId = deviceId;
         this.task = task;
         this.context = context;
+        this.thread = thread;
     }
 
-    @Override
-    public void run() {
-        runningThread = Thread.currentThread();
-        try {
-            task.init(context);
-
-            while (!stopped) {
-                synchronized (pauseLock) {
-                    while (paused) {
-                        pauseLock.wait();
-                    }
-                }
-
-                boolean finished = task.executeStep(context);
-                if (finished) {
-                    break;
-                }
-
-                Thread.sleep(50);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (Exception e) {
-            context.log("任务执行异常：" + e.getMessage());
-            e.printStackTrace();
-        } finally {
-            try {
-                task.cleanup(context);
-            } catch (Exception e) {
-                context.log("任务清理异常：" + e.getMessage());
-            }
-        }
+    public String getDeviceId() {
+        return deviceId;
     }
 
-    public void pause() {
-        paused = true;
+    public ITask getTask() {
+        return task;
     }
 
-    public void resume() {
-        synchronized (pauseLock) {
-            paused = false;
-            pauseLock.notifyAll();
-        }
+    public TaskContext getContext() {
+        return context;
     }
 
-    public void stop() {
-        stopped = true;
-        resume();
-        if (runningThread != null) {
-            runningThread.interrupt();
-        }
+    public TaskThread getThread() {
+        return thread;
+    }
+
+    public String getCurrentStep() {
+        return currentStep;
+    }
+
+    public void setCurrentStep(String currentStep) {
+        this.currentStep = currentStep;
+    }
+
+    public String getThreadStatus() {
+        return threadStatus;
+    }
+
+    public void setThreadStatus(String threadStatus) {
+        this.threadStatus = threadStatus;
+    }
+
+    public String getTaskName() {
+        return taskName;
+    }
+
+    public void setTaskName(String taskName) {
+        this.taskName = taskName;
     }
 }

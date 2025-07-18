@@ -1,19 +1,9 @@
 package com.my.qwe;
 
-import com.my.qwe.core.DeviceManager;
-import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.init.AppInitializer;
-import com.my.qwe.model.DeviceInfo;
-import com.my.qwe.task.BaotuTask;
-import com.my.qwe.task.TaskContext;
 import com.my.qwe.core.TaskEventBus;
 import com.my.qwe.core.TaskStepEvent;
 import com.my.qwe.ui.MainUI;
-
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
 
 public class Main {
     public static void main(String[] args) {

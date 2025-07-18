@@ -1,14 +1,15 @@
 package com.my.qwe.task;
 
 public interface ITask {
-    void execute(TaskContext context) throws Exception;
-
-    void init(TaskContext context) throws Exception;
+    /**
+     * 启动任务执行逻辑（由线程调用）
+     * @param context 任务上下文，包含配置信息等
+     * @param thread 当前任务线程，用于支持暂停与停止控制
+     */
+    void start(TaskContext context, TaskThread thread);
 
     /**
-     * 执行单步任务，返回true表示任务完成
+     * 获取任务名称（用于 UI 展示）
      */
-    boolean executeStep(TaskContext context) throws Exception;
-
-    void cleanup(TaskContext context) throws Exception;
+    String getName();
 }

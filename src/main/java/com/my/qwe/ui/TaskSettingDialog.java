@@ -1,11 +1,12 @@
 package com.my.qwe.ui;
 
+import org.ini4j.Wini;
+
 import javax.swing.*;
 import java.awt.*;
 import java.io.File;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 public class TaskSettingDialog extends JDialog {
     private final String deviceId;
@@ -20,7 +21,7 @@ public class TaskSettingDialog extends JDialog {
         setSize(600, 500);
         setLocationRelativeTo(parent);
 
-        taskTypeBox = new JComboBox<>(new String[]{"打图", "师门", "挖图"});
+        taskTypeBox = new JComboBox<>(new String[]{"挖图", "打图", "师门", "分图","开图"});
 
         JButton loadBtn = new JButton("读取配置文件");
         JButton saveBtn = new JButton("保存配置文件");
@@ -43,31 +44,74 @@ public class TaskSettingDialog extends JDialog {
 
     private void loadConfig() {
         String taskType = (String) taskTypeBox.getSelectedItem();
-        String path = "D:/myapp/config/" + deviceId + "_" + taskType.toLowerCase() + ".json";
+        String iniPath = "D:/myapp/config/" + deviceId + ".ini";
+        File file = new File(iniPath);
 
         try {
-            File file = new File(path);
+            // 确保目录存在
+            file.getParentFile().mkdirs();
+
+            // 初始化 INI 文件对象
+            Wini ini = new Wini(file);
+            ini.getConfig().setFileEncoding(StandardCharsets.UTF_8);
+
+            // 如果文件不存在，创建并添加初始配置
             if (!file.exists()) {
-                configArea.setText("{\n  \"param1\": \"value\",\n  \"param2\": 123\n}");
-                JOptionPane.showMessageDialog(this, "未找到配置，生成默认内容");
-            } else {
-                String content = Files.readString(Paths.get(path));
-                configArea.setText(content);
-                JOptionPane.showMessageDialog(this, "配置加载成功");
+                ini.add(taskType);
+                ini.put(taskType, "描述", "无其他配置");
+                ini.store();
             }
-        } catch (Exception ex) {
+
+            // 如果 section 不存在，也添加
+            if (!ini.containsKey(taskType)) {
+                ini.add(taskType);
+                ini.put(taskType, "描述", "无其他配置");
+                ini.store();
+            }
+
+            // 读取并显示该 section 的配置内容
+            StringBuilder sb = new StringBuilder();
+            for (String key : ini.get(taskType).keySet()) {
+                sb.append(key).append("=").append(ini.get(taskType, key)).append("\n");
+            }
+            configArea.setText(sb.toString());
+            JOptionPane.showMessageDialog(this, "配置加载成功");
+
+        } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "读取失败: " + ex.getMessage());
         }
     }
 
     private void saveConfig() {
         String taskType = (String) taskTypeBox.getSelectedItem();
-        String path = "D:/myapp/config/" + deviceId + "_" + taskType.toLowerCase() + ".json";
+        String iniPath = "D:/myapp/config/" + deviceId + ".ini";
+        File file = new File(iniPath);
 
         try {
-            Files.writeString(Paths.get(path), configArea.getText(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            // 确保目录存在
+            file.getParentFile().mkdirs();
+            if (!file.exists()) {
+                file.createNewFile(); // 创建空文件
+            }
+            Wini ini = new Wini(file);
+            ini.getConfig().setFileEncoding(StandardCharsets.UTF_8);
+
+            // 清空旧的 section 再写入新配置
+            ini.remove(taskType);
+            ini.add(taskType);
+
+            String[] lines = configArea.getText().split("\n");
+            for (String line : lines) {
+                if (line.contains("=")) {
+                    String[] parts = line.split("=", 2);
+                    ini.put(taskType, parts[0].trim(), parts[1].trim());
+                }
+            }
+
+            ini.store();
             JOptionPane.showMessageDialog(this, "配置保存成功");
-        } catch (Exception ex) {
+
+        } catch (IOException ex) {
             JOptionPane.showMessageDialog(this, "保存失败: " + ex.getMessage());
         }
     }

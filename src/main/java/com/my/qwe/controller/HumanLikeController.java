@@ -1,6 +1,7 @@
 package com.my.qwe.controller;
 
 import com.my.qwe.http.DeviceHttpClient;
+import com.my.qwe.task.TaskThread;
 import org.ini4j.Wini;
 
 import java.awt.*;
@@ -10,10 +11,15 @@ import java.nio.charset.StandardCharsets;
 
 public class HumanLikeController {
     private static final String CONFIG_PATH = "D:/myapp/config/config.ini";
+    private final TaskThread taskThread;
 
     // 配置参数
     private static int clickOffsetX = 0;
     private static int clickOffsetY = 0;
+
+    public HumanLikeController(TaskThread taskThread) {
+        this.taskThread = taskThread;
+    }
 
     /*static {
         try {
@@ -48,19 +54,38 @@ public class HumanLikeController {
 
         DeviceHttpClient.click(deviceId, "left", x, y);
     }
+
+    public void sendkey(String deviceId,String key) throws IOException {
+        DeviceHttpClient.sendkey(deviceId,key);
+
+
+    }
+
     //坐标加减随机数后点击
     public void click(String deviceId, int x, int y, int xp, int yp) throws IOException {
+        if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return ;
+        taskThread.checkPause();
         Point actual = applyRandomOffset(x, y, xp, yp);
         DeviceHttpClient.click(deviceId, "left", actual.x, actual.y);
     }
+    public void doubleclick(String deviceId, int x, int y, int xp, int yp) throws IOException {
+        if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return ;
+        taskThread.checkPause();
+        Point actual = applyRandomOffset(x, y, xp, yp);
+        DeviceHttpClient.doubleclick(deviceId, "left", actual.x, actual.y);
+    }
+
+
 
 
 
     // 在全屏寻找图片，并点击
     public void clickImg(String deviceId, String filename) {
+        if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return ;
+        taskThread.checkPause();
         try {
-            String imgPath = "D:\\myapp\\images\\" + filename + ".bmp";
-            int[] pos = DeviceHttpClient.findImage(deviceId, imgPath, 0.8);
+
+            int[] pos = DeviceHttpClient.findImage(deviceId, filename, 0.8);
             click(deviceId, pos[0], pos[1]);
         } catch (IOException e) {
             e.printStackTrace();

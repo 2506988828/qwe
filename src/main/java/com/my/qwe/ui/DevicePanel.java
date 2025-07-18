@@ -3,30 +3,31 @@ package com.my.qwe.ui;
 import com.my.qwe.core.DeviceManager;
 import com.my.qwe.task.*;
 import com.my.qwe.model.DeviceInfo;
-import com.my.qwe.task.config.TaskConfigLoader;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.HashMap;
-import java.util.Map;
 
 public class DevicePanel extends JPanel {
     private final DeviceInfo deviceInfo;
-    private final JLabel statusLabel;
+
+    private JLabel taskLabel;
+    private JLabel stepLabel;
+    private JLabel threadLabel;
+
     private JPopupMenu menu;
     private JComboBox<String> taskSelector;
     private JButton startButton;
 
-
     public DevicePanel(DeviceInfo info) {
         this.deviceInfo = info;
-        setBorder(BorderFactory.createTitledBorder(info.deviceName + " (" + info.deviceId + ")"));
+        String isonline = (info.state==1)?"在线":"离线";
+        setBorder(BorderFactory.createTitledBorder(info.name + " (" + info.deviceId + ")"+isonline));
         setLayout(new BorderLayout());
 
         // 任务选择 + 开始按钮放入顶部面板
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        taskSelector = new JComboBox<>(new String[]{"挖图", "打图", "师门","分图"});
+        taskSelector = new JComboBox<>(new String[]{"接图", "挖图", "打图", "师门", "转图","开图","读图"});
         startButton = new JButton("开始");
         startButton.addActionListener(e -> startSelectedTask());
 
@@ -36,9 +37,17 @@ public class DevicePanel extends JPanel {
 
         add(topPanel, BorderLayout.NORTH);
 
-        // 状态标签放中间
-        statusLabel = new JLabel("状态: 未启动");
-        add(statusLabel, BorderLayout.CENTER);
+        // 状态面板放中间，3行显示任务、步骤、线程状态
+        taskLabel = new JLabel("任务: -");
+        stepLabel = new JLabel("步骤: -");
+        threadLabel = new JLabel("线程: -");
+
+        JPanel statusPanel = new JPanel(new GridLayout(3, 1));
+        statusPanel.add(taskLabel);
+        statusPanel.add(stepLabel);
+        statusPanel.add(threadLabel);
+
+        add(statusPanel, BorderLayout.CENTER);
 
         // 添加右键菜单
         initPopupMenu();
@@ -51,14 +60,21 @@ public class DevicePanel extends JPanel {
                 if (e.isPopupTrigger()) menu.show(e.getComponent(), e.getX(), e.getY());
             }
         });
+
+        // 监听任务步骤通知
         TaskStepNotifier.registerListener(deviceInfo.deviceId, message -> {
             SwingUtilities.invokeLater(() -> {
-                statusLabel.setText("状态: " + message);
+                stepLabel.setText("步骤: " + message);
             });
         });
 
+        // 监听线程状态通知
+        TaskThreadStatusNotifier.register(deviceInfo.deviceId, status -> {
+            SwingUtilities.invokeLater(() -> {
+                threadLabel.setText("线程: " + status);
+            });
+        });
     }
-
 
     private void startSelectedTask() {
         if (deviceInfo == null || deviceInfo.deviceId == null) {
@@ -69,37 +85,31 @@ public class DevicePanel extends JPanel {
         String selected = (String) taskSelector.getSelectedItem();
         ITask task;
         switch (selected) {
-            case "挖图":
-                task = new BaotuTask();
-                break;
-            case "打图":
-                task = new DatuTask();
-                break;
-            case "师门":
-                task = new ShimenTask();
-                break;
-            case "分图":
-                task = new FentuTask();
-                break;
+            case "挖图": task = new WatuTask(); break;
+            case "打图": task = new DatuTask(); break;
+            case "师门": task = new ShimenTask(); break;
+            case "转图": task = new ZhuantuTask(); break;
+            case "接图": task = new JietuTask(); break;
+            case "开图": task = new KaituTask(); break;
+            case "读图": task = new DutuTask(); break;
             default:
                 JOptionPane.showMessageDialog(this, "未知任务类型: " + selected);
                 return;
         }
 
-        Map<String, Map<String, String>> config = TaskConfigLoader.loadConfig(deviceInfo.name, selected.toLowerCase());
-        TaskContext context = new TaskContext(deviceInfo.deviceId, config,deviceInfo.name);
+       // Map<String, Map<String, String>> config = TaskConfigLoader.loadConfig(deviceInfo.name, selected.toLowerCase());
+        TaskContext context = new TaskContext(deviceInfo.deviceId, deviceInfo.name);
 
         DeviceManager.startTask(deviceInfo.deviceId, task, context);
-        statusLabel.setText("状态: 执行中（" + selected + "）");
+
+        taskLabel.setText("任务: " + selected);
+        stepLabel.setText("步骤: 等待中...");
+        threadLabel.setText("线程: 运行中");
     }
 
     private void startTask() {
-        // 改成调用上面的方法
         startSelectedTask();
     }
-
-
-
 
     private void initPopupMenu() {
         menu = new JPopupMenu();
@@ -123,21 +133,21 @@ public class DevicePanel extends JPanel {
         menu.add(settingItem);
     }
 
-
-
     private void pauseTask() {
         DeviceManager.pauseTask(deviceInfo.deviceId);
-        statusLabel.setText("状态: 暂停中");
+        threadLabel.setText("线程: 暂停中");
     }
 
     private void resumeTask() {
         DeviceManager.resumeTask(deviceInfo.deviceId);
-        statusLabel.setText("状态: 恢复执行");
+        threadLabel.setText("线程: 运行中");
     }
 
     private void stopTask() {
         DeviceManager.stopTask(deviceInfo.deviceId);
-        statusLabel.setText("状态: 已停止");
+        threadLabel.setText("线程: 已停止");
+        stepLabel.setText("步骤: -");
+        taskLabel.setText("任务: -");
     }
 
     private void openSettings() {

@@ -1,39 +1,25 @@
 package com.my.qwe.task;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 任务上下文，包含设备ID、任务配置等
+ */
 public class TaskContext {
     private final String deviceId;
-    private final String name;
-    private final Map<String, Object> params = new ConcurrentHashMap<>();
+    private final String deviceName;
 
-    public TaskContext(String deviceId, Map<String, Map<String, String>> initialParams, String name) {
+
+    public TaskContext(String deviceId,String deviceName) {
         this.deviceId = deviceId;
-        this.name = name;
-        if (initialParams != null) {
-            this.params.putAll(initialParams);
-        }
+        this.deviceName = deviceName;
     }
 
     public String getDeviceId() {
         return deviceId;
     }
 
-    public String getName(){
-        return name;
-    }
-
-    public Object getParam(String key) {
-        return params.get(key);
-    }
-
-    public void setParam(String key, Object value) {
-        params.put(key, value);
-    }
-
-    public void log(String message) {
-
-        TaskStepNotifier.notifyStep(deviceId, message);
+    public String getDeviceName() {
+        return deviceName;
     }
 }

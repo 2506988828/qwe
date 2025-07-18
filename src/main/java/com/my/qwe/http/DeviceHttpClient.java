@@ -171,11 +171,20 @@ public class DeviceHttpClient {
      * @return 匹配到的第一个坐标[x,y]
      * @throws IOException 网络或接口异常，或者未找到匹配图片
      */
-    public static int[] findImage(String deviceId, int[][] rect, String filename, double similarity) throws IOException {
+    public static int[] findImage(String deviceId, int[] rect, String filename, double similarity) throws IOException {
+        String imgPath = "D:\\myapp\\images\\"+filename+".bmp";
+        byte[] imageBytes = Files.readAllBytes(Paths.get(imgPath));
+        String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+
+        JSONArray rectArray = new JSONArray();
+        rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[1])));  // 左上角
+        rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[3])));  // 左下角
+        rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[1])));  // 右上角
+        rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[3])));  // 右下角
         JSONObject data = new JSONObject();
         data.put("deviceid", deviceId);
-        data.put("rect", toJSONArray(rect));
-        data.put("filename", filename);
+        data.put("rect", new JSONArray(rectArray));
+        data.put("img", base64Image);
         data.put("similarity", similarity);
 
         JSONObject req = new JSONObject();
@@ -183,17 +192,21 @@ public class DeviceHttpClient {
         req.put("msgid", 0);
         req.put("data", data);
 
+
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 
         if (resp.optInt("status", -1) != 0) {
             throw new IOException("查找图片失败：" + resp.optString("message"));
         }
 
-        JSONArray pos = resp.getJSONObject("data").optJSONArray("pos");
+        JSONArray pos = resp.getJSONObject("data").optJSONArray("result");
         if (pos == null || pos.length() < 2) {
-            throw new IOException("未找到匹配图片位置");
+            return  new int[]{-1, -1};
         }
+        if(resp.getJSONObject("data").optInt("code")==1) {
+            return new int[]{-1, -1};
 
+        }
         return new int[]{pos.getInt(0), pos.getInt(1)};
     }
     /**
@@ -206,44 +219,46 @@ public class DeviceHttpClient {
      */
     public static int[] findImage(String deviceId, String filename, double similarity) throws IOException {
 
+        String imgPath = "D:\\myapp\\images\\" + filename + ".bmp";
 
-        byte[] imageBytes = Files.readAllBytes(Paths.get(filename));
+        byte[] imageBytes = Files.readAllBytes(Paths.get(imgPath));
         String base64Image = Base64.getEncoder().encodeToString(imageBytes);
 
 
 
         JSONObject data = new JSONObject();
         data.put("deviceid", deviceId);
-
-
         data.put("img", base64Image);
         data.put("similarity", similarity);
 
+
         JSONObject req = new JSONObject();
+
         req.put("fun", "find_image");
         req.put("msgid", 0);
         req.put("data", data);
 
-
         JSONObject resp = HttpJsonClient.post(API_URL, req);
-
-
 
         if (resp.getInt("status")!=0) {
             System.out.println("查找失败");
         }
 
-
-        JSONArray ja1= resp.getJSONObject("data").getJSONArray("result");
-        int[] result = new int[ja1.length()];
-        for (int i = 0; i < ja1.length(); i++) {
-            result[i] = ja1.getInt(i); // 自动处理类型转换
+        int code = resp.getJSONObject("data").getInt("code");
+        if ( code ==1 ){
+            return new int[]{-1, -1};
         }
+        else if ( code !=1){
+            JSONArray ja1= resp.getJSONObject("data").getJSONArray("result");
+            int[] result = new int[ja1.length()];
+            for (int i = 0; i < ja1.length(); i++) {
+                result[i] = ja1.getInt(i); // 自动处理类型转换
+            }
+            return result;
+        }
+        return new int[]{-1, -1};
+}
 
-
-
-        return result;
-    }
 
     /*查找多张图片*/
 
@@ -265,7 +280,6 @@ public class DeviceHttpClient {
 
             JSONArray ja= new JSONArray().put(base64Image);
             ja.put(base64Image2);
-            System.out.println("到这了");
             // 构建请求数据
             JSONObject data = new JSONObject();
             data.put("deviceid", deviceId);
@@ -277,14 +291,11 @@ public class DeviceHttpClient {
 
             request.put("data", data);
 
-            System.out.println(request.toString());
-
 
 
             // 发送请求并获取响应
             JSONObject resp = HttpJsonClient.post(API_URL, request);
 
-            System.out.println(resp.toString());
             return resp;
         } catch (Exception e) {
             e.printStackTrace();
@@ -314,12 +325,11 @@ public class DeviceHttpClient {
         req.put("fun", "ocr");
         req.put("msgid", 0);
         req.put("data", data);
+        req.put("isjpg",true);
 
-        System.out.println(req.toString());
 
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 
-        System.out.println(resp.toString());
 
         if (resp.optInt("status", -1) != 0) {
             throw new IOException("OCR识别失败：" + resp.optString("message"));
@@ -445,7 +455,7 @@ public class DeviceHttpClient {
         data.put("button", button == null || button.isEmpty() ? "left" : button);
         data.put("x", x);
         data.put("y", y);
-        int time = (int)(Math.random() * 301);
+        int time = (int)(Math.random() * 80);
         data.put("time", time);
 
         JSONObject req = new JSONObject();
@@ -455,6 +465,46 @@ public class DeviceHttpClient {
 
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("鼠标单击失败：" + resp.optString("message"));
+        }
+    }
+
+    public static void  sendkey(String deviceId, String key) throws IOException {
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("key", key);
+        data.put("fn_key", "");
+        JSONObject req = new JSONObject();
+        req.put("fun", "send_key");
+        req.put("msgid", 0);
+        req.put("data", data);
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("键盘输入失败：" + resp.optString("message"));
+        }
+
+    }
+
+
+
+    public static void doubleclick(String deviceId, String button, int x, int y) throws IOException {
+
+        JSONObject data = new JSONObject();
+        data.put("deviceid", deviceId);
+        data.put("button", button == null || button.isEmpty() ? "left" : button);
+        data.put("x", x);
+        data.put("y", y);
+        int time = (int)(Math.random() * 50);
+        data.put("time", time);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "click");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+        HttpJsonClient.post(API_URL, req);
         if (resp.optInt("status", -1) != 0) {
             throw new IOException("鼠标单击失败：" + resp.optString("message"));
         }
