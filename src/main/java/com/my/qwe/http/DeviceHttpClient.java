@@ -1,10 +1,12 @@
 package com.my.qwe.http;
 
 import com.my.qwe.model.DeviceInfo;
+import com.my.qwe.task.TaskStepNotifier;
 import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacpp.indexer.FloatIndexer;
 import org.bytedeco.opencv.opencv_core.Mat;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
@@ -307,10 +309,11 @@ public class DeviceHttpClient {
      * 对指定区域执行OCR识别，返回识别文字
      * @param deviceId 设备ID
      * @param rect 识别区域，格式 [x, y, width, height]
-     * @return 识别出的文字
+     * @return 识别出的文字，识别失败返回空字符串
      * @throws IOException 网络或接口异常
      */
     public static String ocr(String deviceId, int[] rect) throws IOException {
+        // 构建请求参数
         JSONObject data = new JSONObject();
         JSONArray rectArray = new JSONArray();
         rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[1])));  // 左上角
@@ -319,23 +322,87 @@ public class DeviceHttpClient {
         rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[3])));  // 右下角
 
         data.put("deviceid", deviceId);
-        data.put("rect", new JSONArray(rectArray));
+        data.put("rect", rectArray);
 
         JSONObject req = new JSONObject();
         req.put("fun", "ocr");
         req.put("msgid", 0);
         req.put("data", data);
-        req.put("isjpg",true);
+        req.put("isjpg", true);
 
-
+        // 发送请求并获取响应
         JSONObject resp = HttpJsonClient.post(API_URL, req);
 
-
+        // 检查响应状态
         if (resp.optInt("status", -1) != 0) {
             throw new IOException("OCR识别失败：" + resp.optString("message"));
         }
 
-        return resp.getJSONObject("data").getJSONArray("list").getJSONObject(0).getString("txt");
+        // 安全解析OCR结果
+        try {
+            JSONObject dataObj = resp.getJSONObject("data");
+            JSONArray listArray = dataObj.getJSONArray("list");
+
+            if (listArray.length() > 0) {
+                return listArray.getJSONObject(0).getString("txt");
+            } else {
+                TaskStepNotifier.notifyStep(deviceId, "OCR识别结果列表为空");
+                return "";
+            }
+        } catch (JSONException e) {
+            TaskStepNotifier.notifyStep(deviceId, "解析OCR结果失败：" + e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * 对指定区域执行OCR识别，返回识别文字
+     * @param deviceId 设备ID
+     * @param rect 识别区域，格式 [x, y, width, height]
+     * @return 识别出的文字，识别失败返回空字符串
+     * @throws IOException 网络或接口异常
+     */
+    public static String ocrEx(String deviceId, int[] rect) throws IOException {
+        // 构建请求参数
+        JSONObject data = new JSONObject();
+        JSONArray rectArray = new JSONArray();
+        rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[1])));  // 左上角
+        rectArray.put(new JSONArray(Arrays.asList(rect[0], rect[3])));  // 左下角
+        rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[1])));  // 右上角
+        rectArray.put(new JSONArray(Arrays.asList(rect[2], rect[3])));  // 右下角
+
+        data.put("deviceid", deviceId);
+        data.put("rect", rectArray);
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "ocr");
+        req.put("msgid", 0);
+        req.put("data", data);
+        req.put("isjpg", true);
+
+        // 发送请求并获取响应
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        // 检查响应状态
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("OCR识别失败：" + resp.optString("message"));
+        }
+
+        // 安全解析OCR结果
+        try {
+            JSONObject dataObj = resp.getJSONObject("data");
+            JSONArray listArray = dataObj.getJSONArray("list");
+
+            if (listArray.length() > 0) {
+                return listArray.getJSONObject(0).getString("txt");
+            } else {
+                TaskStepNotifier.notifyStep(deviceId, "OCR识别结果列表为空");
+                return "";
+            }
+        } catch (JSONException e) {
+            TaskStepNotifier.notifyStep(deviceId, "解析OCR结果失败：" + e.getMessage());
+            return "";
+        }
     }
 
     /**
@@ -467,6 +534,35 @@ public class DeviceHttpClient {
 
         if (resp.optInt("status", -1) != 0) {
             throw new IOException("鼠标单击失败：" + resp.optString("message"));
+        }
+    }
+
+
+    /**
+     * 模拟鼠标单击操作
+     * @param deviceId 设备ID
+     * @param x 屏幕X坐标
+     * @param y 屏幕Y坐标
+     *
+     * @throws IOException 网络或接口异常
+     */
+    public static void movemouse(String deviceId, int x, int y) throws IOException {
+
+        JSONObject data = new JSONObject();
+        data.put("y", y);
+        data.put("x", x);
+        data.put("deviceid", deviceId);
+
+
+        JSONObject req = new JSONObject();
+        req.put("fun", "mouse_move");
+        req.put("msgid", 0);
+        req.put("data", data);
+
+        JSONObject resp = HttpJsonClient.post(API_URL, req);
+
+        if (resp.optInt("status", -1) != 0) {
+            throw new IOException("鼠标移动失败：" + resp.optString("message"));
         }
     }
 

@@ -80,13 +80,14 @@ public class HumanLikeController {
 
 
     // 在全屏寻找图片，并点击
-    public void clickImg(String deviceId, String filename) {
+    public void clickImg(String deviceId, String filename,int px,int py) {
         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return ;
         taskThread.checkPause();
         try {
 
             int[] pos = DeviceHttpClient.findImage(deviceId, filename, 0.8);
-            click(deviceId, pos[0], pos[1]);
+            click(deviceId, pos[0], pos[1],px,py);
+
         } catch (IOException e) {
             e.printStackTrace();
         }

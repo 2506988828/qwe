@@ -15,16 +15,16 @@ public class KaituTask implements ITask {
 
     // 状态控制变量
     private boolean isStoringToWarehouse = false; // 标记是否正在执行"背包存仓库"操作
-    private List<Integer> currentWarehouseEmptySlots; // 仓库空格子缓存
-
 
     @Override
     public void start(TaskContext context, TaskThread thread) {
         CommonActions common = new CommonActions(context, thread);
         TaskStepNotifier.notifyStep(context.getDeviceId(), "===== 开始开图任务 =====");
 
+        boolean isWarehouseOpened = false; // 仓库是否已打开
+        int remainingEmptySlots = 0; // 背包剩余空格数
+
         try {
-            // 主循环：处理仓库藏宝图→使用背包→存回仓库
             while (!thread.isStopped() && !Thread.currentThread().isInterrupted()) {
                 thread.checkPause();
 
@@ -34,37 +34,44 @@ public class KaituTask implements ITask {
                     return;
                 }
 
-                // 步骤2：如果正在存背包，跳过取图流程，专注存完
+                // 首次打开仓库或存完后，重新识别背包空格
+                if (!isWarehouseOpened) {
+                    remainingEmptySlots = common.findcangkujiemianEmptyBagIndices(context.getDeviceId()).size();
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "仓库打开，识别背包空格：" + remainingEmptySlots);
+                    isWarehouseOpened = true;
+                }
+
+                // 步骤2：处理存背包状态
                 if (isStoringToWarehouse) {
                     storeUsedTreasureToWarehouse(context, thread, common);
-                    // 存完后重置状态，重新获取背包空格并开始取图
                     isStoringToWarehouse = false;
+
+                    // 存完后重新识别背包空格
+                    remainingEmptySlots = common.findcangkujiemianEmptyBagIndices(context.getDeviceId()).size();
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "存图后背包空格：" + remainingEmptySlots);
                     continue;
                 }
 
-                // 步骤3：获取背包空格（仅在取图阶段初始获取）
-                List<Integer> emptyBagSlots = common.findcangkujiemianEmptyBagIndices(context.getDeviceId());
-                int remainingEmptySlots = emptyBagSlots.size();
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "背包空格子数量：" + remainingEmptySlots);
-
+                // 步骤3：检查背包是否满
                 if (remainingEmptySlots <= 0) {
-                    // 背包满，进入"存背包"流程（设置状态标记）
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "背包已满，开始使用并存回仓库");
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "背包已满，强制处理");
                     isStoringToWarehouse = true;
                     processFullBag(context, thread, common);
                     continue;
                 }
 
-                // 步骤4：遍历当前仓库页取图（仅在非存背包阶段执行）
-                boolean currentPageHasValid = processCurrentWarehousePage(
+                // 步骤4：正常取图流程（获取实际消耗的空格数）
+                int slotsConsumed = processCurrentWarehousePage(
                         context, thread, common, remainingEmptySlots
                 );
+                remainingEmptySlots -= slotsConsumed;
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "当前页取图后剩余空格：" + remainingEmptySlots);
 
-                // 步骤5：当前页无有效藏宝图则翻页
-                if (!currentPageHasValid) {
+                // 步骤5：翻页逻辑
+                if (slotsConsumed == 0) { // 当前页无有效宝图
                     if (common.canPageDown()) {
                         common.pageDown();
-                        TaskStepNotifier.notifyStep(context.getDeviceId(), "当前页无有效藏宝图，翻至下一页");
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "翻至下一页");
                         Thread.sleep(waittime + 500);
                     } else {
                         // 无下一页且背包有图→处理背包；无图→任务结束
@@ -86,14 +93,15 @@ public class KaituTask implements ITask {
         } catch (Exception e) {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "任务异常终止：" + e.getMessage());
             e.printStackTrace();
+        } finally {
+            isStoringToWarehouse = false;
         }
     }
 
-
     /**
-     * 处理当前仓库页的藏宝图（仅在非存背包阶段执行）
+     * 处理当前仓库页的藏宝图，返回实际消耗的空格数
      */
-    private boolean processCurrentWarehousePage(
+    private int processCurrentWarehousePage(
             TaskContext context, TaskThread thread, CommonActions common, int remainingEmptySlots
     ) throws IOException, InterruptedException {
 
@@ -102,42 +110,41 @@ public class KaituTask implements ITask {
         );
         if (warehouseTreasureIndices.isEmpty()) {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "当前仓库页无藏宝图");
-            return false;
+            return 0;
         }
 
-        boolean currentPageHasValid = false;
+        int consumedSlots = 0; // 记录实际消耗的空格数
+        int totalTreasures = warehouseTreasureIndices.size();
 
-        for (int warehouseIndex : warehouseTreasureIndices) {
-            if (thread.isStopped() || isStoringToWarehouse) break; // 存背包阶段直接跳出
+        for (int i = 0; i < totalTreasures; i++) {
+            int warehouseIndex = warehouseTreasureIndices.get(i);
+            if (thread.isStopped() || isStoringToWarehouse) break;
             thread.checkPause();
 
-            // 背包满则进入存背包流程
             if (remainingEmptySlots <= 0) {
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "背包已满，准备存回仓库");
                 isStoringToWarehouse = true;
                 processFullBag(context, thread, common);
-                remainingEmptySlots = common.findcangkujiemianEmptyBagIndices(context.getDeviceId()).size();
-                if (remainingEmptySlots <= 0) break;
+                return consumedSlots;
             }
 
-            // 单击检查仓库藏宝图
+            // 检查并取出宝图
             common.clickCangkuGrid(context.getDeviceId(), warehouseIndex);
             Thread.sleep(waittime);
 
-            // OCR识别并判断是否取出
             String ocrResult = DeviceHttpClient.ocr(context.getDeviceId(), OCR_RECT);
             if (isContainTargetChar(ocrResult)) {
                 common.doubleclickCangkuGrid(context.getDeviceId(), warehouseIndex);
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "取出仓库格子[" + warehouseIndex + "]的藏宝图");
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "取出仓库格子[" + warehouseIndex + "]的藏宝图（本页进度：" + (i+1) + "/" + totalTreasures + "）");
                 remainingEmptySlots--;
-                currentPageHasValid = true;
+                consumedSlots++;
                 Thread.sleep(waittime);
             }
         }
 
-        return currentPageHasValid;
+        return consumedSlots;
     }
-
 
     /**
      * 处理满背包：关闭仓库→使用→存回→重新打开仓库
@@ -146,6 +153,7 @@ public class KaituTask implements ITask {
         // 关闭仓库→打开背包→使用所有藏宝图
         common.closeWarehouse();
         common.openBag();
+
         List<Integer> bagTreasureIndices = common.findAllItemIndices(context.getDeviceId(), treasureMapImg, 0.8);
         for (int bagIndex : bagTreasureIndices) {
             if (thread.isStopped()) break;
@@ -153,6 +161,7 @@ public class KaituTask implements ITask {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "使用背包格子[" + bagIndex + "]的藏宝图");
             Thread.sleep(waittime + new Random().nextInt(300));
         }
+
         common.closeBag();
         Thread.sleep(waittime);
 
@@ -160,60 +169,85 @@ public class KaituTask implements ITask {
         openWarehouse(context, thread, common);
     }
 
-
     /**
-     * 将使用后的藏宝图存回仓库（仅在此阶段执行，不处理取图）
+     * 将使用后的藏宝图存回仓库（使用总页数限制翻页）
      */
     private void storeUsedTreasureToWarehouse(TaskContext context, TaskThread thread, CommonActions common) throws IOException, InterruptedException {
-        // 1. 获取背包中待存的藏宝图列表
+        String deviceId = context.getDeviceId();
+        TaskStepNotifier.notifyStep(deviceId, "===== 开始存回使用后的藏宝图 =====");
+
+        // 获取仓库总页数
+        int totalPages = common.getWarehouseTotalPages();
+        TaskStepNotifier.notifyStep(deviceId, "仓库总页数: " + totalPages);
+
+        // 获取背包中待存的藏宝图
         List<Integer> usedTreasureIndices = common.findcangkujiemianAllItemIndices(
-                context.getDeviceId(), treasureMapImg, 0.8
+                deviceId, treasureMapImg, 0.8
         );
+
         if (usedTreasureIndices.isEmpty()) {
-            TaskStepNotifier.notifyStep(context.getDeviceId(), "背包无使用后的藏宝图可存");
+            TaskStepNotifier.notifyStep(deviceId, "背包中无待存的藏宝图");
             return;
         }
 
-        // 2. 逐个存入仓库（每次找一个空格子）
+        TaskStepNotifier.notifyStep(deviceId, "待存藏宝图数量：" + usedTreasureIndices.size());
+
+        // 逐个存入仓库
         for (int bagIndex : usedTreasureIndices) {
             if (thread.isStopped()) break;
             thread.checkPause();
 
-            // 3. 找第一个空格子（找不到则翻页）
+            // 寻找仓库空格子（使用总页数作为限制）
             int warehouseIndex = -1;
-            while (true) {
-                // 尝试在当前页找第一个空格子
-                warehouseIndex = common.findFirstEmptyCangkuIndex(context.getDeviceId());
+            int currentPage = 1; // 当前页码
+
+            while (warehouseIndex == -1 && currentPage <= totalPages) {
+                // 在当前页查找第一个空格子
+                warehouseIndex = common.findFirstEmptyCangkuIndex(deviceId);
                 if (warehouseIndex != -1) {
-                    // 找到空格子，跳出循环
-                    break;
+                    break; // 找到空格，退出循环
                 }
 
-                // 当前页无空格子，检查是否可翻页
-                if (common.canPageDown()) {
+                // 当前页无空格，尝试翻页
+                if (currentPage < totalPages) {
                     common.pageDown();
-                    Thread.sleep(waittime + 500); // 翻页延迟
+                    currentPage++;
+                    TaskStepNotifier.notifyStep(deviceId, "翻至第" + currentPage + "页（共" + totalPages + "页）");
+                    Thread.sleep(waittime + 500);
                 } else {
-                    // 无下一页且无空格子，存图失败
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "仓库无空格子，无法存回");
-                    return;
+                    // 已到达最后一页，尝试返回第一页
+                    TaskStepNotifier.notifyStep(deviceId, "已达最后一页，返回第一页重新查找");
+                    while (common.canPageUp()) {
+                        common.pageUp();
+                        Thread.sleep(waittime);
+                    }
+                    currentPage = 1;
+                    warehouseIndex = common.findFirstEmptyCangkuIndex(deviceId);
+                    if (warehouseIndex == -1) {
+                        TaskStepNotifier.notifyStep(deviceId, "仓库所有页面均无空格，存图失败");
+                        return;
+                    }
                 }
             }
 
-            // 4. 执行存入操作（双击背包格子取出，单击仓库格子存入）
-            common.doubleclickcangkujiemianBagGrid(context.getDeviceId(), bagIndex); // 从背包取出
-            TaskStepNotifier.notifyStep(context.getDeviceId(), "存回仓库格子[" + warehouseIndex + "]");
-            Thread.sleep(waittime);
+            // 执行存入操作
+            try {
+                common.doubleclickcangkujiemianBagGrid(deviceId, bagIndex);
+                Thread.sleep(waittime);
+
+                TaskStepNotifier.notifyStep(deviceId, "存入成功：仓库格子[" + warehouseIndex + "]");
+            } catch (Exception e) {
+                TaskStepNotifier.notifyStep(deviceId, "存入失败：背包格子[" + bagIndex + "] → 仓库格子[" + warehouseIndex + "]，错误：" + e.getMessage());
+            }
         }
 
-        TaskStepNotifier.notifyStep(context.getDeviceId(), "背包藏宝图全部存回仓库");
+        TaskStepNotifier.notifyStep(deviceId, "所有藏宝图已存入仓库");
     }
-
 
     // 其他辅助方法（保持不变）
     private boolean openWarehouse(TaskContext context, TaskThread thread, CommonActions common) throws IOException, InterruptedException {
         int retry = 0;
-        while (retry < 3) {
+        while (retry < 15) {
             if (common.ifOpenCangku()) return true;
             common.openJianyeCangku();
             Thread.sleep(1000);

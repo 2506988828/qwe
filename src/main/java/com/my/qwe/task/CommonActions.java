@@ -15,6 +15,15 @@ public class CommonActions {
     private final TaskContext context;
     private final TaskThread taskThread;
     private int waittime=(new java.util.Random().nextInt(201) + 300);
+    // 坐标识别区域配置（仅包含起点坐标和高度，根据地区字数区分）
+    // 格式：[x起点, y起点, 高度]，需根据实际游戏界面调整！
+    private static final int[] AREA_3CHAR = {460, 212, 15}; // 3字地区：x起点, y起点, 高度
+    private static final int[] AREA_4CHAR = {480, 212, 15}; // 4字地区：x起点, y起点, 高度
+
+    // 右括号“)”的多点找色配置（用于动态计算宽度）
+    // 格式：基准色,偏移点1|颜色1,偏移点2|颜色2...（需根据实际游戏调整）
+    private static final String BRACKET_BASE_COLOR = "171f27"; // 右括号基准色
+    private static final String BRACKET_OFFSET_COLORS = "2|2|171f27,4|0|171f27,0|4|171f27"; // 右括号特征点
 
     /**
      * 藏宝图识别相关区域定义（根据实际游戏界面调整坐标）
@@ -252,34 +261,81 @@ public class CommonActions {
         }
     }
 
-    //打开背包
-    public void openBag(){
-        TaskStepNotifier.notifyStep(context.getDeviceId(),"打开背包...");
+    /**
+     * 打开背包（优化版）
+     * 增加超时控制、减少重复操作、优化判断逻辑
+     */
+    public void openBag() {
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "尝试打开背包...");
         HumanLikeController human = new HumanLikeController(taskThread);
+        int maxAttempts = 5;      // 最大尝试次数
+        int attemptDelay = 500;   // 每次尝试间隔(ms)
+        int timeoutSeconds = 10;  // 超时时间(秒)
+
         try {
+            long startTime = System.currentTimeMillis();
+
             while (true) {
-                if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return ;
+                // 检查任务状态
+                if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "任务已停止，终止打开背包");
+                    return;
+                }
                 taskThread.checkPause();
-            int[]jiancebeibao = DeviceHttpClient.findMultiColor(context.getDeviceId(),649,365,665,382,"d0a357","6|12|b35d20,2|14|cc3021,6|4|df1020,1|8|ac6714,1|11|f8cf5d,15|10|9d561a,13|13|990116,9|16|b5741f",0.8,0);
-            int[]jiancebeibaoshifoudakai = DeviceHttpClient.findMultiColor(context.getDeviceId(),316,27,333,46,"2d3374","5|0|2d3472,0|12|383c85,12|11|c3bee2,13|14|9698b8,11|1|6465a6,6|4|9fa3c6,1|6|d2dcef,12|0|292c73",0.8,0);
-                Thread.sleep(new java.util.Random().nextInt(200) + 100);
-                if (jiancebeibao[0]>0) {
-                Thread.sleep(new java.util.Random().nextInt(200) + 100);
-                human.click(context.getDeviceId(),659,378,5,5);
-                    Thread.sleep(new java.util.Random().nextInt(200) + 100);
+
+                // 超时检查
+                if ((System.currentTimeMillis() - startTime) / 1000 > timeoutSeconds) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "打开背包超时，已尝试" + maxAttempts + "次");
+                    break;
                 }
 
-            else if (jiancebeibao[0]<0) {
-                    if (jiancebeibaoshifoudakai[0] > 0) {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(),"背包已打开");
-                        Thread.sleep(new java.util.Random().nextInt(200) + 100);
-                        break;
-                    }
-                TaskStepNotifier.notifyStep(context.getDeviceId(),"未识别到道具按钮");}
+                // 检查背包是否已打开
+                boolean isBagOpen = isBagOpen();
+                if (isBagOpen) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "背包已打开");
+                    break;
+                }
+
+                // 查找背包按钮
+                int[] bagButtonPos = findBagButton();
+                if (bagButtonPos[0] > 0) {
+                    // 找到背包按钮，点击它
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "找到背包按钮，点击打开");
+                    human.click(context.getDeviceId(), bagButtonPos[0], bagButtonPos[1], 5, 5);
+                    Thread.sleep(attemptDelay); // 等待界面响应
+                } else {
+                    // 未找到背包按钮
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "未识别到背包按钮，重试中...");
+                    Thread.sleep(1000);
+                }
             }
         } catch (Exception e) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "打开背包时发生异常: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * 检查背包是否已打开
+     */
+    private boolean isBagOpen() throws IOException {
+        int[] result = DeviceHttpClient.findMultiColor(
+                context.getDeviceId(), 316, 27, 333, 46,
+                "2d3374", "5|0|2d3472,0|12|383c85,12|11|c3bee2,13|14|9698b8,11|1|6465a6,6|4|9fa3c6,1|6|d2dcef,12|0|292c73",
+                0.8, 0
+        );
+        return result[0] > 0;
+    }
+
+    /**
+     * 查找背包按钮位置
+     */
+    private int[] findBagButton() throws IOException {
+        return DeviceHttpClient.findMultiColor(
+                context.getDeviceId(), 649, 365, 665, 382,
+                "d0a357", "6|12|b35d20,2|14|cc3021,6|4|df1020,1|8|ac6714,1|11|f8cf5d,15|10|9d561a,13|13|990116,9|16|b5741f",
+                0.8, 0
+        );
     }
 
     /**
@@ -742,6 +798,13 @@ public class CommonActions {
         }
     }
 
+    public int getWarehouseTotalPages() {
+        int[] yeshu = ocrCangkuyeshu();
+        int currentPage = yeshu[0];
+        int totalPages = yeshu[1];
+        return totalPages;
+    }
+
     /**
      * 跳转到指定仓库页（支持上下双向翻页）
      */
@@ -808,7 +871,7 @@ public class CommonActions {
         }
     }
 
-    //打开地图后输入坐标，确定后关闭地图，调用时形参传递“243,11”
+    /*//打开地图后输入坐标，确定后关闭地图，调用时形参传递“243,11”
     public void clickInputPos(String str){
         HumanLikeController human = new HumanLikeController(taskThread);
 
@@ -816,9 +879,9 @@ public class CommonActions {
             try {
                 if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                 taskThread.checkPause();
-                human.click(context.getDeviceId(),65,31,20,5);//打开地图
+                human.click(context.getDeviceId(),86,32,20,10);//打开地图
                 Thread.sleep(500);
-                int[]jiancedakaiditu = DeviceHttpClient.findMultiColor(context.getDeviceId(),360,21,725,231,"7aa7c8","16|7|1a425a,5|2|69aac0,6|14|16334e,17|16|223e5d,3|6|264960,4|18|1e314a,9|14|1d3a59,17|3|1e425b,21|21|38638c,10|19|2d5a85,17|9|456e95,0|4|5d8fae,4|10|386285,18|22|3278ac,21|23|2e5278",0.8,0);
+                int[]jiancedakaiditu = DeviceHttpClient.findMultiColor(context.getDeviceId(),1,1,2000,2000,"aeadbb","7|12|b3b7cb,18|8|b3b7cb,3|19|b3b7c9,28|7|b5b6c9,15|14|b3b7cb,10|11|b3b7cb,3|11|b2b8cb,15|3|b6b6c9,7|21|b4b7cb,16|11|b3b7cb,28|6|b5b6c9,13|20|b3b7cb,1|5|b3b7cb,7|8|b3b7cb,11|22|b4b7cb,5|10|b2b8cb,7|17|b3b7cb,2|1|b7b5c9,5|7|b3b7cc,21|10|b3b7cb,3|21|b4b7c9",0.9,0);
                 if(jiancedakaiditu[0]>0){
                     Thread.sleep(500);
                     break;
@@ -831,11 +894,13 @@ public class CommonActions {
 
         try {
             Thread.sleep(500);
-            int[]posX= DeviceHttpClient.findMultiColor(context.getDeviceId(),355,0,2000,2000,"1a2429","17|8|1a252a,6|10|e6ecf0,9|14|151d21,5|5|192328,5|15|1e262b,1|13|172227",0.8,0);
+            int[]posX= DeviceHttpClient.findMultiColor(context.getDeviceId(),1,1,2000,2000,"aeadbb","7|12|b3b7cb,18|8|b3b7cb,3|19|b3b7c9,28|7|b5b6c9,15|14|b3b7cb,10|11|b3b7cb,3|11|b2b8cb,15|3|b6b6c9,7|21|b4b7cb,16|11|b3b7cb,28|6|b5b6c9,13|20|b3b7cb,1|5|b3b7cb,7|8|b3b7cb,11|22|b4b7cb,5|10|b2b8cb,7|17|b3b7cb,2|1|b7b5c9,5|7|b3b7cc,21|10|b3b7cb,3|21|b4b7c9",0.9,0);
+            int a=new java.util.Random().nextInt(10)+10;
+            int b=new java.util.Random().nextInt(10)+10;
+            human.click(context.getDeviceId(),posX[0]+a,posX[1]+b,0,0 );
+            Thread.sleep(new java.util.Random().nextInt(2000) + 400);
 
-            human.click(context.getDeviceId(),posX[0]+60,posX[1]+20,0,0 );
-            Thread.sleep(new java.util.Random().nextInt(1001) + 400);
-            Thread.sleep(new java.util.Random().nextInt(1001) + 400);
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -843,27 +908,196 @@ public class CommonActions {
             try {
                 if(str.charAt(i)!=','){
                 char ch = str.charAt(i);
-                human.clickImg(context.getDeviceId(),"坐标"+ch);
+                human.clickImg(context.getDeviceId(),"坐标"+ch,3,3);
                 }
                 else if(str.charAt(i)==','){
-                    human.clickImg(context.getDeviceId(),"确定");
+                    human.clickImg(context.getDeviceId(),"确定",4,4);
                 }
-                Thread.sleep(new java.util.Random().nextInt(101) + 200);
+                Thread.sleep(new java.util.Random().nextInt(200) + 200);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
-        human.clickImg(context.getDeviceId(),"确定");
+        human.clickImg(context.getDeviceId(),"确定",4,4);
 
         try {
             Thread.sleep(500);
-            human.click(context.getDeviceId(),700,57,5,5);//关闭地图
+            human.clickImg(context.getDeviceId(),"关闭地图",7,7);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
 
 
+    }*/
+    /**
+     * 打开地图后输入坐标，确定后关闭地图（优化版：基于基准图片1推算其他位置）
+     * 适配布局：
+     * 第一行：1 2 3 删除
+     * 第二行：4 5 6 0
+     * 第三行：7 8 9 确定
+     * 每个按钮大小：48×48像素，间距：10像素
+     * @param str 坐标字符串，格式如"243,11"
+     */
+    public void clickInputPos(String str) {
+        HumanLikeController human = new HumanLikeController(taskThread);
+        // 空白区域坐标（避免鼠标遮挡）
+        final int BLANK_X = 100;
+        final int BLANK_Y = 500;
+        // 打开地图最大尝试次数
+        final int MAX_MAP_OPEN_ATTEMPTS = 5;
+        int mapOpenAttempts = 0;
+        // 按钮尺寸和间距参数
+        final int BUTTON_WIDTH = 48;  // 按钮宽度
+        final int BUTTON_HEIGHT = 48; // 按钮高度
+        final int GRID_SPACING = 10;  // 按钮间距
+
+        // 基于按钮尺寸和间距计算的相对位置偏移量
+        final int ROW_SPACING = BUTTON_HEIGHT + GRID_SPACING; // 行间距
+        final int COL_SPACING = BUTTON_WIDTH + GRID_SPACING;  // 列间距
+
+        try {
+            // 步骤1：打开地图（带超时控制）
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "打开地图...");
+            while (true) {
+                if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "任务中断，终止操作");
+                    return;
+                }
+                taskThread.checkPause();
+                human.click(context.getDeviceId(), 86, 32, 20, 10); // 打开地图
+                Thread.sleep(500);
+
+                // 检测地图是否打开
+                int[] mapCheck = DeviceHttpClient.findMultiColor(
+                        context.getDeviceId(), 1, 1, 2000, 2000,
+                        "aeadbb",
+                        "7|12|b3b7cb,18|8|b3b7cb,3|19|b3b7c9,28|7|b5b6c9,15|14|b3b7cb,10|11|b3b7cb,3|11|b2b8cb,15|3|b6b6c9,7|21|b4b7cb,16|11|b3b7cb,28|6|b5b6c9,13|20|b3b7cb,1|5|b3b7cb,7|8|b3b7cb,11|22|b4b7cb,5|10|b2b8cb,7|17|b3b7cb,2|1|b7b5c9,5|7|b3b7cc,21|10|b3b7cb,3|21|b4b7c9",
+                        0.9, 0
+                );
+                if (mapCheck[0] > 0) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "地图已打开");
+                    break;
+                }
+                if (++mapOpenAttempts >= MAX_MAP_OPEN_ATTEMPTS) {
+                    throw new RuntimeException("打开地图失败，超过最大尝试次数");
+                }
+                Thread.sleep(500);
+            }
+
+            // 步骤2：激活坐标输入区域
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "激活坐标输入区域...");
+            int[] inputArea = DeviceHttpClient.findMultiColor(
+                    context.getDeviceId(), 1, 1, 2000, 2000,
+                    "aeadbb",
+                    "7|12|b3b7cb,18|8|b3b7cb,3|19|b3b7c9,28|7|b5b6c9,15|14|b3b7cb,10|11|b3b7cb,3|11|b2b8cb,15|3|b6b6c9,7|21|b4b7cb,16|11|b3b7cb,28|6|b5b6c9,13|20|b3b7cb,1|5|b3b7cb,7|8|b3b7cb,11|22|b4b7cb,5|10|b2b8cb,7|17|b3b7cb,2|1|b7b5c9,5|7|b3b7cc,21|10|b3b7cb,3|21|b4b7c9",
+                    0.9, 0
+            );
+            if (inputArea[0] <= 0) {
+                throw new RuntimeException("未找到坐标输入区域");
+            }
+            int a = new java.util.Random().nextInt(10) + 10;
+            int b = new java.util.Random().nextInt(10) + 10;
+            human.click(context.getDeviceId(), inputArea[0] + a, inputArea[1] + b, 0, 0);
+            Thread.sleep(new java.util.Random().nextInt(2000) + 400);
+
+            // 步骤3：找到基准图片"1"的位置（以此推算其他数字）
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "查找数字1的位置...");
+            int[] num1Pos = DeviceHttpClient.findImage(context.getDeviceId(),"坐标1",0.8);
+            if (num1Pos[0] <= 0) {
+                throw new RuntimeException("未找到数字1的位置，无法推算其他数字");
+            }
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "找到数字1位置：(" + num1Pos[0] + "," + num1Pos[1] + ")");
+
+            // 计算按钮中心偏移量（从按钮左上角到中心的偏移）
+            final int CENTER_OFFSET_X = BUTTON_WIDTH / 2;
+            final int CENTER_OFFSET_Y = BUTTON_HEIGHT / 2;
+
+            // 以数字1的左上角为基准点，计算各按钮中心坐标
+            int baseX = num1Pos[0] - CENTER_OFFSET_X;  // 数字1按钮的左上角x坐标
+            int baseY = num1Pos[1] - CENTER_OFFSET_Y;  // 数字1按钮的左上角y坐标
+
+            // 步骤4：输入坐标（通过推算的坐标点击）
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "开始输入坐标：" + str);
+            for (int i = 0; i < str.length(); i++) {
+                if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "任务中断，停止输入");
+                    return;
+                }
+                taskThread.checkPause();
+
+                char ch = str.charAt(i);
+                int targetX = 0;
+                int targetY = 0;
+
+                // 根据字符推算目标按钮中心坐标（按实际键盘布局调整）
+                switch (ch) {
+                    case '1':
+                        targetX = baseX + CENTER_OFFSET_X;
+                        targetY = baseY + CENTER_OFFSET_Y;
+                        break;
+                    case '2':
+                        targetX = baseX + COL_SPACING + CENTER_OFFSET_X;  // 1的右侧
+                        targetY = baseY + CENTER_OFFSET_Y;
+                        break;
+                    case '3':
+                        targetX = baseX + 2 * COL_SPACING + CENTER_OFFSET_X;  // 2的右侧
+                        targetY = baseY + CENTER_OFFSET_Y;
+                        break;
+                    case '4':
+                        targetX = baseX + CENTER_OFFSET_X;
+                        targetY = baseY + ROW_SPACING + CENTER_OFFSET_Y;  // 1的下方
+                        break;
+                    case '5':
+                        targetX = baseX + COL_SPACING + CENTER_OFFSET_X;
+                        targetY = baseY + ROW_SPACING + CENTER_OFFSET_Y;  // 4的右侧
+                        break;
+                    case '6':
+                        targetX = baseX + 2 * COL_SPACING + CENTER_OFFSET_X;
+                        targetY = baseY + ROW_SPACING + CENTER_OFFSET_Y;  // 5的右侧
+                        break;
+                    case '7':
+                        targetX = baseX + CENTER_OFFSET_X;
+                        targetY = baseY + 2 * ROW_SPACING + CENTER_OFFSET_Y;  // 4的下方
+                        break;
+                    case '8':
+                        targetX = baseX + COL_SPACING + CENTER_OFFSET_X;
+                        targetY = baseY + 2 * ROW_SPACING + CENTER_OFFSET_Y;  // 7的右侧
+                        break;
+                    case '9':
+                        targetX = baseX + 2 * COL_SPACING + CENTER_OFFSET_X;
+                        targetY = baseY + 2 * ROW_SPACING + CENTER_OFFSET_Y;  // 8的右侧
+                        break;
+                    case '0':
+                        targetX = baseX + 3 * COL_SPACING + CENTER_OFFSET_X;  // 第二行第4个
+                        targetY = baseY + ROW_SPACING + CENTER_OFFSET_Y;
+                        break;
+                    case ',':  // 逗号对应"确定"按钮
+                        targetX = baseX + 3 * COL_SPACING + CENTER_OFFSET_X;  // 第三行第4个
+                        targetY = baseY + 2 * ROW_SPACING + CENTER_OFFSET_Y;
+                        break;
+                    default:
+                        throw new RuntimeException("不支持的字符：" + ch);
+                }
+
+                Thread.sleep(100);
+                human.click(context.getDeviceId(), targetX, targetY, 5, 5);  // 增加点击范围容错
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "输入字符：" + ch + "（坐标：" + targetX + "," + targetY + "）");
+                Thread.sleep(new java.util.Random().nextInt(200) + 200);
+            }
+
+            // 步骤5：最终确认并关闭地图
+            int confirmX = baseX + 3 * COL_SPACING + CENTER_OFFSET_X;  // "确定"按钮位置
+            int confirmY = baseY + 2 * ROW_SPACING + CENTER_OFFSET_Y;
+            human.click(context.getDeviceId(), confirmX, confirmY, 5, 5);  // 点击确定
+            Thread.sleep(500);
+            human.clickImg(context.getDeviceId(), "关闭地图", 7, 7);
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "坐标输入完成，地图已关闭");
+
+        } catch (Exception e) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "坐标输入失败：" + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     //使用飞行符
@@ -899,6 +1133,7 @@ public class CommonActions {
             useFeixingfu();
             Thread.sleep( new java.util.Random().nextInt(301) + 200);
             int[]jiancefeixingdakaijiemian = DeviceHttpClient.findImage(context.getDeviceId(),"飞行符打开",0.8);
+
             if (jiancefeixingdakaijiemian[0]>0){
                 switch (Mudidi){
                     case "建邺城":human.click(context.getDeviceId(),468,253,4,4);
@@ -1316,7 +1551,7 @@ public class CommonActions {
      * @param context 任务上下文
      * @return 识别到的地区名称，未识别到则返回空字符串
      */
-    private String recognizeMapArea(TaskContext context) throws IOException {
+    String recognizeMapArea(TaskContext context) throws IOException {
         String deviceId = context.getDeviceId();
 
         // 定义各地区的多点找色参数（根据实际游戏调整）
@@ -1324,32 +1559,27 @@ public class CommonActions {
 
         // 添加"花果山"地区的识别参数
         areaColorConfigs.put("花果山", new MapAreaColorConfig(
-                "141e27",  // 基准色
-                "41|2|171927,39|12|24d122,11|14|0c1f1d,24|9|15ff10,5|5|103c21,12|14|032a0e," +
-                        "31|7|47bf47,14|8|15172c,32|5|20e21e,15|10|1fd517,6|10|22cf16,12|5|04150c," +
-                        "28|13|1f4c28,32|1|131727,36|8|33663d,43|12|078d0b,40|11|103c1a,15|2|15bc17," +
-                        "18|2|2fb032,32|13|165f1c",  // 偏移色
-                0.8  // 相似度阈值
+                "161e26","6|3|38b735,14|12|3bd034,17|6|0e1520,33|2|131a26,2|11|1a1c28,11|11|028404,44|2|131f27,20|7|109011,35|8|080814,17|7|0e291d,16|11|034209,25|4|35ca3b,2|6|111d27,16|7|121321,42|8|65c661,18|11|19661c,25|6|38c03e,31|7|41be48",0.8
         ));
 
         // 添加更多地区...
         areaColorConfigs.put("建邺城", new MapAreaColorConfig(
-                "151f28","3|9|215628,3|6|213d2c,26|1|21542d,19|13|0db515,8|14|33430b,26|13|052e12,1|0|161e27,32|3|36e328,40|0|0c2715,39|5|2ec939,16|1|15192b,25|8|2ae227,27|10|1b1c27,38|8|1ae01a,7|4|36943c,38|0|3c3b29,2|2|10141c,22|9|09ca08,35|8|58b153",0.8
+                "171f27","34|7|242c2c,19|2|5ac45a,34|12|47db47,37|9|676270,10|4|2aec2a,5|4|3ece3b,31|6|1b2e23,13|12|12a113,18|12|2a972e,44|9|102b1d,0|9|171f27,32|8|31e234,43|12|16c316,33|4|13dc12,3|10|0e1422,25|6|1ceb12,28|2|32f335,4|13|229d24",0.8
         ));
         areaColorConfigs.put("东海湾", new MapAreaColorConfig(
-                "171e27","8|3|14fe0b,23|14|0b0e1a,12|5|111018,41|3|11d10d,14|5|250532,8|5|17371a,21|4|11db12,12|12|121b17,25|3|0ca40d,24|9|1fe115,29|1|1a3d27,14|3|26cb1f,41|13|2edb2c,39|13|32dc31,20|3|21b91d,28|2|2cf828,5|11|38de39,3|10|121b20,15|8|0e650e",0.8
+                "161e26","1|6|141a25,1|10|181b25,25|7|1df916,9|1|08520c,44|11|021609,18|2|33cd38,10|3|22ce24,31|6|1a6021,11|1|191729,41|10|1af017,13|10|55be5d,1|11|161d28,0|4|161e26,22|8|10ee0e,32|0|1a2722,44|3|1d0e33,32|9|2dbb35,17|9|141a28",0.8
         ));
         areaColorConfigs.put("江南野外", new MapAreaColorConfig(
-                "171d26","18|12|3bde38,44|13|102b24,25|6|1ee21e,47|3|23f01a,29|1|123723,2|9|122027,51|4|16d714,15|12|2acf27,40|3|0f4413,16|7|041119,2|14|122022,17|8|277c38,56|7|27bd2a,49|7|17d81b,56|3|23162f,4|0|0c1c1d,0|3|161e26,31|2|4abf51,5|8|121c23,19|6|085611,46|7|047506,53|7|2dff2a,24|0|264111,3|7|130d1d,25|10|24e425,15|2|19d01a",0.8
+                "161e26","33|11|219d28,10|10|272936,7|6|0f121f,18|7|31e131,29|7|07dc06,33|1|18ad21,23|8|27ff10,28|6|5ab25b,12|1|0f371d,18|9|2de42f,21|3|0da306,14|3|24782c,24|8|12f008,31|4|4dc448,5|5|087309,44|9|051b11,4|13|278f2f,17|8|33783c",0.8
         ));
         areaColorConfigs.put("朱紫国", new MapAreaColorConfig(
-                "161d28","38|12|10ac0e,44|6|074a08,32|5|20d11d,4|10|12301e,21|0|17300f,16|5|0f1412,26|3|259825,26|9|1ccd21,3|6|25602e,24|7|359937,44|10|043206,36|6|31c42f,14|12|2d7d2a,35|8|152b23,36|14|173b2b,19|0|1a2d1c,3|7|215323,20|11|13e913,33|10|26b42c,13|2|0c1f20",0.8
+                "161e26","10|1|19991e,27|9|36fa32,23|1|242335,30|9|110d21,41|4|1d881b,12|4|30972c,15|3|0f980e,11|1|0b1f21,10|2|17c611,35|10|22d720,31|1|1f4232,18|4|28ce27,9|11|31d72b,24|9|11da13,29|2|08360f,4|9|181c28,11|4|21a11e,29|10|11b40c",0.8
         ));
         areaColorConfigs.put("五庄观", new MapAreaColorConfig(
-                "171f27","44|2|290b3a,12|12|2df629,17|11|29b32b,4|0|0d141f,26|11|0d3415,18|12|13ba11,3|7|141926,36|1|1e292c,2|4|141c2a,21|1|0c2118,2|5|1b1830,38|4|018d02,22|7|2fcc2d,15|11|10431c,0|9|171f27,13|0|313912,28|4|0e1c17,0|5|151c25,5|3|125a1b,3|12|367f37",0.8
+                "151c26","33|10|2eeb27,40|13|1f6325,41|0|1e2919,11|13|0e7011,4|7|113a1a,16|2|12181d,22|4|0b0d1a,2|4|161e23,2|13|182327,24|7|15fe0e,28|5|1a1629,23|6|3e9945,25|8|09840b,44|0|0f1e30,25|6|05a100,24|6|15fa0a,39|5|1ae621,37|10|262e31",0.8
         ));
         areaColorConfigs.put("北俱芦洲", new MapAreaColorConfig(
-                "161e26","26|5|14ac15,26|3|14d615,1|13|161e28,43|9|092a18,41|13|161e25,44|3|071e14,9|9|14381d,40|9|1d8320,3|7|131a26,27|12|3fc53e,43|3|164d22,34|9|178416,2|7|131b22,35|5|3de33a,40|2|20fd17,28|13|238526,12|0|314713,5|2|181822",0.8
+                "171c27","26|10|24f823,17|10|14101f,32|4|11451a,3|13|0a2d1b,0|3|161d28,36|7|0c301d,5|6|0a0e17,23|9|18b819,26|12|25663a,29|10|1ed517,38|2|1efa19,15|3|10cf0e,11|7|20c01f,15|11|1aeb19,17|12|12131c,4|5|298228,6|2|130b20,11|2|1cbb1d",0.8
         ));
         areaColorConfigs.put("傲来国", new MapAreaColorConfig(
                 "161e26","15|13|299d35,41|12|17af11,35|12|0ead0f,11|2|15571d,13|4|0c8f10,7|13|088009,21|11|084b09,41|9|0c7611,25|2|18a315,18|2|218231,43|2|07a310,41|4|29842c,3|3|170b27,5|1|449f51,36|10|26e923,0|4|151d25,26|0|37391b,33|5|073017",0.8
@@ -1375,9 +1605,9 @@ public class CommonActions {
         areaColorConfigs.put("大唐国境", new MapAreaColorConfig(
                 "161d28","17|1|0a171d,10|9|264a34,6|11|1cdd18,27|6|1ef71b,38|0|2b471b,12|5|195f18,32|6|1ed116,17|13|1e6e29,44|6|001c06,12|12|172324,42|2|3ced3c,2|0|141d1e,37|2|25a727,33|11|229928,31|7|45c24d,35|5|002701,15|11|05620a,24|11|072d0b",0.8
         ));
-
-
-
+        areaColorConfigs.put("普陀山", new MapAreaColorConfig(
+                "161e26","17|7|309c3a,11|9|259523,41|9|311c40,20|5|31bf30,9|6|27bb2a,34|7|2a0c3d,29|1|0f0720,13|8|21f71b,34|8|290d40,5|6|3de436,3|1|141b29,23|7|34ff2e,10|5|2d8430,21|10|0dc107,29|8|101126,23|13|144618,41|1|0f1820,39|5|220933",0.8
+        ));
 
 
         // 遍历所有地区配置，进行多点找色识别
@@ -1387,7 +1617,7 @@ public class CommonActions {
 
             int[] pos = DeviceHttpClient.findMultiColor(
                     deviceId,
-                    400, 180, 550, 220,  // 藏宝图地区名称所在区域（根据实际游戏调整）
+                    412, 213, 457, 227,  // 藏宝图地区名称所在区域（根据实际游戏调整）
                     config.baseColor,
                     config.offsetColors,
                     config.similarity,
@@ -1403,10 +1633,12 @@ public class CommonActions {
         return "";  // 未识别到任何地区
     }
 
+
+
     /**
      * 地图地区的多点找色配置类
      */
-    private static class MapAreaColorConfig {
+    static class MapAreaColorConfig {
         String baseColor;       // 基准色
         String offsetColors;    // 偏移色字符串
         double similarity;      // 相似度阈值
@@ -1416,6 +1648,241 @@ public class CommonActions {
             this.offsetColors = offsetColors;
             this.similarity = similarity;
         }
+    }
+
+    /**
+     * 识别游戏界面中的坐标（带重试机制）
+     * @param context 任务上下文
+     * @param thread 任务线程
+     * @return 坐标数组 [x, y]，识别失败返回null
+     */
+    int[] recognizeCoordinates(TaskContext context, TaskThread thread,int[]rect) throws Exception {
+
+        String deviceId = context.getDeviceId();
+        int[] result = null;
+
+        for (int attempt = 1; attempt <= 1; attempt++) {
+            // 检查任务是否被终止
+            if (thread.isStopped()) {
+                TaskStepNotifier.notifyStep(deviceId, "任务已终止，停止坐标识别");
+                return null;
+            }
+
+            String ocrResult = DeviceHttpClient.ocrEx(deviceId, rect);
+            TaskStepNotifier.notifyStep(deviceId, "OCR识别结果（第" + attempt + "次）: " + ocrResult);
+
+            // 提取坐标
+            result = extractCoordinatesFromText(ocrResult);
+            if (result != null) {
+                TaskStepNotifier.notifyStep(deviceId, "坐标识别成功: (" + result[0] + ", " + result[1] + ")");
+                return result;
+            }
+
+            // 识别失败，等待重试
+            TaskStepNotifier.notifyStep(deviceId, "坐标识别失败，尝试第" + (attempt + 1) + "次...");
+            Thread.sleep(waittime);
+        }
+
+        TaskStepNotifier.notifyStep(deviceId, "坐标识别失败，已达到最大重试次数");
+        return null;
+    }
+
+    /**
+     * 从文本中提取坐标值（支持格式："46.20"、"46,20"、"46 20"等）
+     * @param text OCR识别的文本
+     * @return 包含X和Y坐标的数组 [x, y]，提取失败返回null
+     */
+    private int[] extractCoordinatesFromText(String text) {
+        if (text == null || text.isEmpty()) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "OCR识别文本为空，无法提取坐标");
+            return null;
+        }
+
+        // 仅移除非数字、非点号、非逗号、非空格的字符（保留潜在分隔符）
+        String cleanedText = text.replaceAll("[^0-9.,\\s]", "");
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "清洗后坐标文本: " + cleanedText);
+
+        // 尝试按多种分隔符分割（点号、逗号、空格）
+        String[] parts = cleanedText.split("[.,\\s]+"); // 匹配 . 或 , 或 空格（连续多个也视为一个分隔符）
+
+        // 需提取到至少两个有效数字
+        if (parts.length >= 2) {
+            try {
+                // 过滤空字符串（可能因连续分隔符产生）
+                List<String> validParts = new ArrayList<>();
+                for (String part : parts) {
+                    if (!part.isEmpty()) {
+                        validParts.add(part);
+                    }
+                }
+
+                if (validParts.size() >= 2) {
+                    int x = Integer.parseInt(validParts.get(0));
+                    int y = Integer.parseInt(validParts.get(1));
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "提取坐标成功: (" + x + "," + y + ")");
+                    return new int[]{x, y};
+                }
+            } catch (NumberFormatException e) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "坐标转换失败: " + e.getMessage() + ", 原始文本: " + text);
+                return null;
+            }
+        }
+
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "无法从文本中提取有效坐标: " + text);
+        return null;
+    }
+
+    /**
+     * 根据地区字数获取起点坐标和高度
+     */
+    private int[] getBaseAreaByAreaLength(String area) {
+        int length = area.length();
+        if (length == 3) {
+            return AREA_3CHAR; // 3字地区
+        } else if (length == 4) {
+            return AREA_4CHAR; // 4字地区
+        } else {
+            return null; // 不支持其他字数
+        }
+    }
+
+    /**
+     * 识别坐标结尾的右括号“)”，返回其x坐标（用于动态计算宽度）
+     */
+    private int findRightBracketX(String deviceId, int xStart, int yStart, int height) throws Exception {
+        // 搜索范围：从x起点向右扩展最大可能宽度（如200像素，足够覆盖最长坐标）
+        int searchMaxX = xStart + 200;
+        int searchY1 = yStart;
+        int searchY2 = yStart + height;
+
+        // 调用多点找色识别右括号“)”
+        int[] bracketPos = DeviceHttpClient.findMultiColor(
+                deviceId,
+                xStart, searchY1, searchMaxX, searchY2, // 搜索范围
+                BRACKET_BASE_COLOR, // 右括号基准色
+                BRACKET_OFFSET_COLORS, // 右括号特征点
+                0.8, // 相似度阈值
+                0
+        );
+
+        if (bracketPos[0] > 0 && bracketPos[1] > 0) {
+            TaskStepNotifier.notifyStep(deviceId, "找到坐标结尾符号，x=" + bracketPos[0]);
+            return bracketPos[0]; // 返回右括号的x坐标
+        }
+        return -1; // 未找到
+    }
+
+    /**
+     * 在动态计算的区域内识别坐标（x, y）
+     */
+    private int[] recognizeCoordinatesInArea(String deviceId, int[] fullArea) throws Exception {
+        // 解析区域参数
+        int xStart = fullArea[0];
+        int yStart = fullArea[1];
+        int width = fullArea[2];
+        int height = fullArea[3];
+
+        // 1. 识别逗号“,”拆分x和y
+        int[] commaPos = findComma(deviceId, xStart, yStart, width, height);
+        if (commaPos == null) {
+            TaskStepNotifier.notifyStep(deviceId, "未找到坐标分隔符“,”");
+            return null;
+        }
+
+        // 2. 识别x坐标（逗号左侧）
+        String xStr = recognizeNumber(deviceId, xStart, yStart, commaPos[0] - xStart, height);
+        if (xStr == null) {
+            TaskStepNotifier.notifyStep(deviceId, "x坐标识别失败");
+            return null;
+        }
+
+        // 3. 识别y坐标（逗号右侧，到右括号为止）
+        String yStr = recognizeNumber(deviceId, commaPos[0] + 2, yStart, width - (commaPos[0] - xStart) - 2, height);
+        if (yStr == null) {
+            TaskStepNotifier.notifyStep(deviceId, "y坐标识别失败");
+            return null;
+        }
+
+        // 4. 转换为数字
+        try {
+            int x = Integer.parseInt(xStr);
+            int y = Integer.parseInt(yStr);
+            return new int[]{x, y};
+        } catch (NumberFormatException e) {
+            TaskStepNotifier.notifyStep(deviceId, "坐标转换失败：" + xStr + "," + yStr);
+            return null;
+        }
+    }
+
+    /**
+     * 识别逗号“,”（分隔x和y）
+     */
+    private int[] findComma(String deviceId, int xStart, int yStart, int width, int height) throws Exception {
+        // 逗号“,”的多点找色配置（需根据实际游戏调整）
+        String commaBaseColor = "171f27";
+        String commaOffsets = "3|2|171f27,5|2|171f27";
+
+        return DeviceHttpClient.findMultiColor(
+                deviceId,
+                xStart, yStart, xStart + width, yStart + height,
+                commaBaseColor,
+                commaOffsets,
+                0.8,
+                0
+        );
+    }
+
+    /**
+     * 识别数字（x或y坐标）
+     * @param xStart 数字区域x起点
+     * @param yStart 数字区域y起点
+     * @param width 数字区域宽度（动态）
+     * @param height 数字区域高度（固定）
+     */
+    private String recognizeNumber(String deviceId, int xStart, int yStart, int width, int height) throws Exception {
+        // 数字0-9的多点找色配置（需根据实际游戏补充完整）
+        Map<String, String> digitConfigs = new HashMap<>();
+        digitConfigs.put("0", "38b735|2|1|38b735,5|1|38b735,2|5|38b735,5|5|38b735"); // 数字0特征
+        digitConfigs.put("1", "3bd034|8|3|3bd034,8|1|3bd034,8|5|3bd034"); // 数字1特征
+        digitConfigs.put("2", "35ca3b|2|1|35ca3b,8|1|35ca3b,5|3|35ca3b,2|5|35ca3b,8|5|35ca3b"); // 数字2特征
+        // ... 补充3-9的数字配置
+
+        StringBuilder number = new StringBuilder();
+        int digitWidth = 10; // 单个数字宽度（固定，根据实际调整）
+
+        // 从左到右识别每个数字
+        for (int x = xStart; x < xStart + width; x += digitWidth) {
+            boolean matched = false;
+            // 尝试匹配每个数字
+            for (Map.Entry<String, String> entry : digitConfigs.entrySet()) {
+                String digit = entry.getKey();
+                String[] config = entry.getValue().split("\\|");
+                String baseColor = config[0];
+                String offsets = String.join("|", java.util.Arrays.copyOfRange(config, 1, config.length));
+
+                // 识别单个数字
+                int[] pos = DeviceHttpClient.findMultiColor(
+                        deviceId,
+                        x, yStart, x + digitWidth, yStart + height,
+                        baseColor,
+                        offsets,
+                        0.8,
+                        0
+                );
+
+                if (pos[0] > 0) {
+                    number.append(digit);
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                break; // 未匹配到数字，结束识别
+            }
+        }
+
+        return number.length() > 0 ? number.toString() : null;
     }
 
 
