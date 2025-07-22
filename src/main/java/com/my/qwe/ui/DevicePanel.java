@@ -1,6 +1,7 @@
 package com.my.qwe.ui;
 
 import com.my.qwe.core.DeviceManager;
+import com.my.qwe.core.DeviceTask;
 import com.my.qwe.task.*;
 import com.my.qwe.model.DeviceInfo;
 
@@ -27,7 +28,7 @@ public class DevicePanel extends JPanel {
 
         // 任务选择 + 开始按钮放入顶部面板
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        taskSelector = new JComboBox<>(new String[]{"接图", "挖图", "打图", "师门", "转图","开图","读图"});
+        taskSelector = new JComboBox<>(new String[]{"取图","接图", "挖图", "打图", "师门", "转图","开图","读图"});
         startButton = new JButton("开始");
         startButton.addActionListener(e -> startSelectedTask());
 
@@ -85,6 +86,7 @@ public class DevicePanel extends JPanel {
         String selected = (String) taskSelector.getSelectedItem();
         ITask task;
         switch (selected) {
+            case "取图": task = new QutuTask(); break;
             case "挖图": task = new WatuTask(); break;
             case "打图": task = new DatuTask(); break;
             case "师门": task = new ShimenTask(); break;

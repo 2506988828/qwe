@@ -761,6 +761,14 @@ public class CommonActions {
         }
     }
 
+    //获得仓库的当前页数
+    public int getWarehouseCurrentPages() {
+        int[] yeshu = ocrCangkuyeshu();
+        int currentPage = yeshu[0];
+        int totalPages = yeshu[1];
+        return currentPage;
+    }
+
     //获得仓库的总页数
     public int getWarehouseTotalPages() {
         int[] yeshu = ocrCangkuyeshu();
