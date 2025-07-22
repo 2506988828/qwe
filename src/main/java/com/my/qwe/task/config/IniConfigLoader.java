@@ -27,7 +27,7 @@ public class IniConfigLoader {
     /**
      * 加载配置文件（路径基于deviceName）
      */
-    private void loadIniFile() {
+    public void loadIniFile() {
         try {
             File file = new File(configPath);
 

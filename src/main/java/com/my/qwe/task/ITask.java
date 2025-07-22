@@ -6,7 +6,7 @@ public interface ITask {
      * @param context 任务上下文，包含配置信息等
      * @param thread 当前任务线程，用于支持暂停与停止控制
      */
-    void start(TaskContext context, TaskThread thread);
+    void start(TaskContext context, TaskThread thread) throws Exception;
 
     /**
      * 获取任务名称（用于 UI 展示）

@@ -36,6 +36,7 @@ public class BagGridUtil {
         return grids;
     }
 
+    //背包中空格子
     public static List<int[]> generateEmptyBagGrids() {
         List<int[]> grids = new ArrayList<>();
 
@@ -88,6 +89,7 @@ public class BagGridUtil {
         return grids;
     }
 
+    //给予界面背包格子
     public static List<int[]> jiyujiemianBagGrids() {
         List<int[]> grids = new ArrayList<>();
 
@@ -115,6 +117,7 @@ public class BagGridUtil {
         return grids;
     }
 
+    //仓库界面背包格子
     public static List<int[]> cangkujiemianBagGrids() {
         List<int[]> grids = new ArrayList<>();
 

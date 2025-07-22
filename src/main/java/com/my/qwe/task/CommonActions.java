@@ -25,20 +25,6 @@ public class CommonActions {
     private static final String BRACKET_BASE_COLOR = "171f27"; // 右括号基准色
     private static final String BRACKET_OFFSET_COLORS = "2|2|171f27,4|0|171f27,0|4|171f27"; // 右括号特征点
 
-    /**
-     * 藏宝图识别相关区域定义（根据实际游戏界面调整坐标）
-     */
-// 地图名称识别区域（例如："麒麟山"、"北俱芦洲"所在位置）
-    private static final int[] MAP_NAME_AREA = {408, 190, 500, 210}; // [x1, y1, x2, y2]
-    // X坐标识别区域（例如：坐标中"32"的X值位置）
-    private static final int[] COORD_X_AREA = {450, 213, 480, 228};
-    // Y坐标识别区域（例如：坐标中"32"的Y值位置）
-    private static final int[] COORD_Y_AREA = {500, 213, 530, 228};
-    // 藏宝图整体坐标区域（之前定义的baotuzuobiaoquyu，可保留备用）
-    private static final int[] baotuzuobiaoquyu = {408, 213, 537, 228};
-
-
-
     public CommonActions(TaskContext context, TaskThread taskThread) {
         this.context = context;
         this.taskThread = taskThread;
@@ -98,11 +84,6 @@ public class CommonActions {
             throw new RuntimeException(e);
         }
     }
-
-
-
-
-
 
 
 
@@ -167,8 +148,6 @@ public class CommonActions {
             return new int[]{-1, -1};
         }
     }
-
-
 
 
     /**
@@ -360,7 +339,7 @@ public class CommonActions {
     }
 
     /**
-     * 遍历背包格子查找图片
+     * 遍历背包格子查找图片所在格子数
      * @param deviceId 设备ID
      * @param imagePath 图片路径（目标道具）
      * @param similarity 相似度阈值
@@ -380,6 +359,7 @@ public class CommonActions {
         return -1;
     }
 
+    //查找仓库中是否存在这个图片的物品
     public int findifCangkuItem(String deviceId, String imagePath, double similarity) {
         int[]rect ={77,115,341,328};
         try {
@@ -394,7 +374,7 @@ public class CommonActions {
     }
 
     /**
-     * 遍历仓库界面背包格子查找图片
+     * 遍历仓库界面的背包格子查找这个图片的物品所在格子数
      * @param deviceId 设备ID
      * @param imagePath 图片路径（目标道具）
      * @param similarity 相似度阈值
@@ -511,6 +491,7 @@ public class CommonActions {
         return matchedIndices;
     }
 
+    //在仓库界面查找仓库中所有符合图片的格子数
     public List<Integer> findcangkuAllItemIndices(String deviceId, String imagePath, double similarity) {
         List<Integer> matchedIndices = new ArrayList<>();
         List<int[]> grids = BagGridUtil.generateCangkuGrids();
@@ -625,12 +606,7 @@ public class CommonActions {
     }
 
 
-
-
-    public void clickGrids(String deviceId, int gezi) {
-
-    }
-
+    //查找所有背包的空格子数
     public List<Integer> findBagEmptyIndices(String deviceId, String imagePath, double similarity) {
         List<Integer> matchedIndices = new ArrayList<>();
         List<int[]> grids = BagGridUtil.generateEmptyBagGrids();
@@ -690,7 +666,7 @@ public class CommonActions {
         }
     }
 
-    //双击仓库的第gridIndex个格子
+    //单击仓库的第gridIndex个格子
     public void clickCangkuGrid(String deviceId, int gridIndex) {
         List<int[]> grids = BagGridUtil.generateCangkuGrids();
         if (gridIndex < 0 || gridIndex >= grids.size()) return;
@@ -705,19 +681,6 @@ public class CommonActions {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public void bagToCangku(String filename){
-        int i=0;
-        i=findcangkujiemianBagItemIndex(context.getDeviceId(),filename,0.8);
-        doubleclickcangkujiemianBagGrid(context.getDeviceId(),i);
-    }
-
-    public void cangkuToBag(String filename){
-        int i=-1;
-        i=findCangkuItemIndex(context.getDeviceId(),filename,0.8);
-        if (i>-1) {
-        doubleclickCangkuGrid(context.getDeviceId(),i);}
     }
 
     //双击背包的第gridIndex个格子
@@ -798,6 +761,7 @@ public class CommonActions {
         }
     }
 
+    //获得仓库的总页数
     public int getWarehouseTotalPages() {
         int[] yeshu = ocrCangkuyeshu();
         int currentPage = yeshu[0];
@@ -871,65 +835,6 @@ public class CommonActions {
         }
     }
 
-    /*//打开地图后输入坐标，确定后关闭地图，调用时形参传递“243,11”
-    public void clickInputPos(String str){
-        HumanLikeController human = new HumanLikeController(taskThread);
-
-        while(true){
-            try {
-                if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
-                taskThread.checkPause();
-                human.click(context.getDeviceId(),86,32,20,10);//打开地图
-                Thread.sleep(500);
-                int[]jiancedakaiditu = DeviceHttpClient.findMultiColor(context.getDeviceId(),1,1,2000,2000,"aeadbb","7|12|b3b7cb,18|8|b3b7cb,3|19|b3b7c9,28|7|b5b6c9,15|14|b3b7cb,10|11|b3b7cb,3|11|b2b8cb,15|3|b6b6c9,7|21|b4b7cb,16|11|b3b7cb,28|6|b5b6c9,13|20|b3b7cb,1|5|b3b7cb,7|8|b3b7cb,11|22|b4b7cb,5|10|b2b8cb,7|17|b3b7cb,2|1|b7b5c9,5|7|b3b7cc,21|10|b3b7cb,3|21|b4b7c9",0.9,0);
-                if(jiancedakaiditu[0]>0){
-                    Thread.sleep(500);
-                    break;
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-
-        }
-
-        try {
-            Thread.sleep(500);
-            int[]posX= DeviceHttpClient.findMultiColor(context.getDeviceId(),1,1,2000,2000,"aeadbb","7|12|b3b7cb,18|8|b3b7cb,3|19|b3b7c9,28|7|b5b6c9,15|14|b3b7cb,10|11|b3b7cb,3|11|b2b8cb,15|3|b6b6c9,7|21|b4b7cb,16|11|b3b7cb,28|6|b5b6c9,13|20|b3b7cb,1|5|b3b7cb,7|8|b3b7cb,11|22|b4b7cb,5|10|b2b8cb,7|17|b3b7cb,2|1|b7b5c9,5|7|b3b7cc,21|10|b3b7cb,3|21|b4b7c9",0.9,0);
-            int a=new java.util.Random().nextInt(10)+10;
-            int b=new java.util.Random().nextInt(10)+10;
-            human.click(context.getDeviceId(),posX[0]+a,posX[1]+b,0,0 );
-            Thread.sleep(new java.util.Random().nextInt(2000) + 400);
-
-
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        for (int i = 0; i < str.length(); i++) {
-            try {
-                if(str.charAt(i)!=','){
-                char ch = str.charAt(i);
-                human.clickImg(context.getDeviceId(),"坐标"+ch,3,3);
-                }
-                else if(str.charAt(i)==','){
-                    human.clickImg(context.getDeviceId(),"确定",4,4);
-                }
-                Thread.sleep(new java.util.Random().nextInt(200) + 200);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-        human.clickImg(context.getDeviceId(),"确定",4,4);
-
-        try {
-            Thread.sleep(500);
-            human.clickImg(context.getDeviceId(),"关闭地图",7,7);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-
-
-    }*/
     /**
      * 打开地图后输入坐标，确定后关闭地图（优化版：基于基准图片1推算其他位置）
      * 适配布局：
@@ -1127,6 +1032,7 @@ public class CommonActions {
         }
     }
 
+    //使用飞行符飞到哪个地方
     public void userFeixingfuToMudidi(String Mudidi){
         HumanLikeController human = new HumanLikeController(taskThread);
         try {
@@ -1470,7 +1376,7 @@ public class CommonActions {
         human.click(context.getDeviceId(), 717, 26, 5, 5); // 关闭按钮
     }
     // 关闭背包
-    void closeBag() {
+    public void closeBag() {
         HumanLikeController human = new HumanLikeController(taskThread);
         try {
             human.click(context.getDeviceId(), 614,35,4,4);
@@ -1489,7 +1395,7 @@ public class CommonActions {
     }
 
     // 以下为需要补充实现的辅助方法（根据UI实际情况）
-     boolean canPageDown() throws IOException {
+    public boolean canPageDown() throws IOException {
         // 检查是否有"下一页"按钮
         int[]yeshu =ocrCangkuyeshu();
 
@@ -1506,7 +1412,7 @@ public class CommonActions {
         return findAllItemIndices(context.getDeviceId(), treasureMapImg, 0.8).size();
     }
 
-     void closeWarehouse() throws IOException {
+     public void closeWarehouse() throws IOException {
         // 点击仓库关闭按钮（坐标需根据实际UI调整）
         HumanLikeController human = new HumanLikeController(taskThread);
         human.click(context.getDeviceId(), 617, 32, 5, 5); // 坐标
@@ -1632,6 +1538,7 @@ public class CommonActions {
 
         return "";  // 未识别到任何地区
     }
+
 
 
 
