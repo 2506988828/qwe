@@ -396,7 +396,7 @@ public class DutuTask implements ITask {
 /**
  * 坐标识别结果类
  */
-class CoordinateResult {
+ class CoordinateResult {
     private final boolean valid;
     private final int x;
     private final int y;

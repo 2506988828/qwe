@@ -9,14 +9,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.sql.Array;
 import java.util.*;
 
 import static org.bytedeco.opencv.global.opencv_core.CV_32FC1;
@@ -264,10 +259,12 @@ public class DeviceHttpClient {
 
     /*查找多张图片*/
 
-    public static JSONObject findImages(String deviceId, String imageFilename,String img2, double similarity) {
+    public static int[] findImages(String deviceId, String imageFilename,String img2,String img3,String img4, double similarity) {
 
         String imgPath = "D:\\myapp\\images\\"+imageFilename+".bmp";
         String imgPath2 = "D:\\myapp\\images\\"+img2+".bmp";
+        String imgPath3 = "D:\\myapp\\images\\"+img3+".bmp";
+        String imgPath4 = "D:\\myapp\\images\\"+img4+".bmp";
         try {
             JSONObject request = new JSONObject();
             request.put("fun", "find_image_ex");
@@ -280,8 +277,16 @@ public class DeviceHttpClient {
             byte[] imageBytes2 = Files.readAllBytes(Paths.get(imgPath2));
             String base64Image2 = Base64.getEncoder().encodeToString(imageBytes2);
 
+            byte[] imageBytes3 = Files.readAllBytes(Paths.get(imgPath3));
+            String base64Image3 = Base64.getEncoder().encodeToString(imageBytes3);
+
+            byte[] imageBytes4 = Files.readAllBytes(Paths.get(imgPath4));
+            String base64Image4 = Base64.getEncoder().encodeToString(imageBytes4);
+
             JSONArray ja= new JSONArray().put(base64Image);
             ja.put(base64Image2);
+            ja.put(base64Image3);
+            ja.put(base64Image4);
             // 构建请求数据
             JSONObject data = new JSONObject();
             data.put("deviceid", deviceId);
@@ -297,12 +302,34 @@ public class DeviceHttpClient {
 
             // 发送请求并获取响应
             JSONObject resp = HttpJsonClient.post(API_URL, request);
-
-            return resp;
+            // 解析响应获取result
+            if (resp != null) {
+                // 检查整体状态是否成功
+                int status = resp.getInt("status");
+                if (status == 0) {
+                    // 获取data对象
+                    JSONObject dataResp = resp.getJSONObject("data");
+                    if (dataResp != null && dataResp.has("list")) {
+                        JSONArray listArray = dataResp.getJSONArray("list");
+                        if (listArray != null && !listArray.isEmpty()) {
+                            // 获取第一个找到的结果
+                            JSONObject firstResult = listArray.getJSONObject(0);
+                            if (firstResult.has("result")) {
+                                JSONArray resultArray = firstResult.getJSONArray("result");
+                                // 解析坐标值
+                                int x = resultArray.getInt(0);
+                                int y = resultArray.getInt(1);
+                                return new int[]{x, y};
+                            }
+                        }
+                    }
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
-            return null;
+            return new int[]{-1, -1};
         }
+        return new int[]{-1, -1};
     }
 
     /**

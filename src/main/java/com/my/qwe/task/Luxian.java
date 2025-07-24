@@ -15,6 +15,16 @@ public class Luxian {
     private final Map<String, SceneHandler> sceneHandlerMap = new HashMap<>();
     private int waittime=(new java.util.Random().nextInt(201) + 300);
 
+    // 定义需要多路线的场景及对应的子路线名
+    private static final Map<String, String[]> MULTI_ROUTE_SCENES = new HashMap<>();
+    static {
+        MULTI_ROUTE_SCENES.put("大唐国境", new String[]{"大唐国境1", "大唐国境2"});
+        // 可添加其他多路线场景
+        MULTI_ROUTE_SCENES.put("大唐境外", new String[]{"大唐境外1", "大唐境外2"});
+    }
+    // 暂存目标坐标（用于路线判断）
+    private int[] targetPosition;
+
     public Luxian(TaskContext context, TaskThread taskThread) {
         this.context = context;
         this.taskThread = taskThread;
@@ -144,6 +154,48 @@ public class Luxian {
                     commonActions.userFeixingfuToMudidi("傲来国");}
             }
         });
+        sceneHandlerMap.put("大唐国境", new SceneHandler() {
+            @Override
+            public void enterScene() throws Exception {
+                int[]targetPos = getTargetPosition();
+                if (targetPos == null || targetPos.length < 2) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "无法获取坐标，默认使用路线1");
+                    sceneHandlerMap.get("大唐国境1").enterScene();
+                    return;
+                }
+                int x = targetPos[0];
+                int y = targetPos[1];
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "根据坐标(" + x + "," + y + ")选择路线");
+                // 根据坐标判断路线（可修改条件）
+                if (x < 310 ) { // 条件1：走路线1
+                    sceneHandlerMap.get("大唐国境1").enterScene();
+                } else { // 条件2：走路线2
+                    sceneHandlerMap.get("大唐国境2").enterScene();
+                }
+            }
+        });
+
+        sceneHandlerMap.put("大唐境外", new SceneHandler() {
+            @Override
+            public void enterScene() throws Exception {
+                int[]targetPos = getTargetPosition();
+                if (targetPos == null || targetPos.length < 2) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "无法获取坐标，默认使用路线1");
+                    sceneHandlerMap.get("大唐境外1").enterScene();
+                    return;
+                }
+                int x = targetPos[0];
+                int y = targetPos[1];
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "根据坐标(" + x + "," + y + ")选择路线");
+                // 根据坐标判断路线（可修改条件）
+                if (x < 320 ) { // 条件1：走路线1
+                    sceneHandlerMap.get("大唐境外1").enterScene();
+                } else { // 条件2：走路线2
+                    sceneHandlerMap.get("大唐境外2").enterScene();
+                }
+            }
+        });
+
         sceneHandlerMap.put("女儿村", new SceneHandler() {
             @Override
             public void enterScene() throws InterruptedException {
@@ -272,9 +324,8 @@ public class Luxian {
                     return;
                 }
                 if (!diqu.equals("大唐境外")){
-                    toScene("大唐境外1");
+                    toScene("大唐境外","8,49");
                 }
-                commonActions.clickInputPos("8,49");
                 while (!detector.isTeleportButtonVisible()){
                     if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                     taskThread.checkPause();
@@ -298,11 +349,12 @@ public class Luxian {
                     return;
                 }
                 if (!diqu.equals("大唐境外")){
-                    toScene("大唐境外1");
+                    toScene("大唐境外","238,108");
                 }
-                commonActions.clickInputPos("238,108");
                 int [] currentpos = commonActions.ocrZuobiao();
                 while (currentpos[0]!=238 || currentpos[1]!=108){
+                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                    taskThread.checkPause();
                     TaskStepNotifier.notifyStep(context.getDeviceId(),currentpos[0]+","+currentpos[1]+"未到达目的地");
                     currentpos = commonActions.ocrZuobiao();
                     Thread.sleep(2000);
@@ -377,16 +429,48 @@ public class Luxian {
             }
         });
         sceneHandlerMap.put("大唐境外2", new SceneHandler() {
-            //此方法用于到大唐境外x坐标小于340的情况
+            //此方法用于到大唐境外x坐标大于320的情况
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws Exception {
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("大唐境外")){
-
+                    toScene("大唐国境","10,78");
                 }
+                int[] pos =commonActions.ocrZuobiao();
+                while (pos[0]!=10 || pos[1]!=78){
+                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                    taskThread.checkPause();
+                    Thread.sleep(2000);
+                    pos =commonActions.ocrZuobiao();
+                }
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "点击大唐境外传送点");
+
+                // 步骤4: 点击传送按钮（带重试）
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "点击传送按钮（尝试 " + attempt + "/3）");
+
+                    human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
+                    Thread.sleep(waittime * 2); // 延长等待时间
+
+                    // 验证是否成功到达
+                    String newArea = commonActions.ocrShibieDiqu();
+                    if (newArea.contains("大唐境外")) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "成功到达大唐境外");
+                        return;
+                    }
+
+                    if (attempt < 3) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "传送失败，重试中...");
+                    }
+                }
+
             }
         });
-        sceneHandlerMap.put("大唐国境1", new SceneHandler() {
+        sceneHandlerMap.put("大唐国境2", new SceneHandler() {
             @Override
             public void enterScene() throws Exception {
                 DeviceHttpClient httpClient = new DeviceHttpClient();
@@ -411,7 +495,7 @@ public class Luxian {
                 }
 
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "准备前往大唐国境1...");
+                        "准备前往大唐国境...");
                 commonActions.openBag();
                 Thread.sleep(waittime);
                 // 步骤1: 查找并使用红色飞行棋（带重试）
@@ -444,7 +528,7 @@ public class Luxian {
                 }
 
 
-                // 步骤2: 点击大唐国境传送点（带验证）
+                // 步骤2: 点击大唐国境传送点
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
                         "点击大唐国境传送点");
 
@@ -491,7 +575,7 @@ public class Luxian {
                     String newArea = commonActions.ocrShibieDiqu();
                     if (newArea.contains("大唐国境")) {
                         TaskStepNotifier.notifyStep(context.getDeviceId(),
-                                "成功到达大唐国境1");
+                                "成功到达大唐国境");
                         return;
                     }
 
@@ -502,13 +586,222 @@ public class Luxian {
                 }
 
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "错误：多次尝试后仍未能到达大唐国境1");
+                        "错误：多次尝试后仍未能到达大唐国境");
             }
         });
+
+        sceneHandlerMap.put("大唐国境1", new SceneHandler() {
+            @Override
+            public void enterScene() throws Exception {
+                DeviceHttpClient httpClient = new DeviceHttpClient();
+                if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                taskThread.checkPause();
+
+                // 初始化检测器
+                GameStateDetector detector = new GameStateDetector(context, httpClient);
+
+                // 检测当前状态
+                String currentArea = commonActions.ocrShibieDiqu();
+                double currentHp = detector.getPlayerHpPercent();
+
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "当前地区: " + currentArea + ", 血量: " + String.format("%.0f%%", currentHp * 100));
+
+                // 如果已经在大唐国境，直接退出
+                if (currentArea.contains("大唐国境")) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "已在大唐国境，无需导航");
+                    return;
+                }
+
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "准备前往大唐国境...");
+                commonActions.openBag();
+                Thread.sleep(waittime);
+                // 步骤1: 查找并使用红色飞行棋（带重试）
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "查找红色飞行棋（尝试 " + attempt + "/3）");
+
+                    int[] feixingqiPos = DeviceHttpClient.findImage(context.getDeviceId(),"红色飞行棋",0.8);
+
+                    if (feixingqiPos[0] > 0) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "找到红色飞行棋，双击使用");
+
+                        human.doubleclick(context.getDeviceId(),
+                                feixingqiPos[0], feixingqiPos[1], 5,5);
+
+                        Thread.sleep(waittime);
+                        break;
+                    }
+
+                    if (attempt == 3) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "错误：多次尝试未找到红色飞行棋，终止导航");
+                        return;
+                    }
+
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "未找到，重试中...");
+                    Thread.sleep(1000);
+                }
+
+
+                // 步骤2: 点击大唐国境传送点（带验证）
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "点击大唐国境传送点");
+                human.click(context.getDeviceId(), 363, 324, 5, 5);
+                Thread.sleep(waittime);
+                commonActions.closeBag();
+
+
+                int[] pos= DeviceHttpClient.findImages(context.getDeviceId(),"国境驿站1","国境驿站2","国境驿站3","国境驿站4",0.7);
+
+                while (pos[0] <0){
+                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                    taskThread.checkPause();
+                    pos= DeviceHttpClient.findImages(context.getDeviceId(),"国境驿站1","国境驿站2","国境驿站3","国境驿站4",0.7);
+                }
+
+
+                human.click(context.getDeviceId(), pos[0], pos[1], 1, 1);
+                Thread.sleep(waittime);
+
+                // 检查是否出现"是的，我要去"选项
+                int[] ifpos = DeviceHttpClient.findMultiColor(
+                        context.getDeviceId(), 40, 185, 560, 210,
+                        "415a6c",
+                        "11|0|496473,10|8|9eacb5,0|7|ccdfe6,7|5|f1f5f8,7|0|4c6675,9|9|758791,6|8|eff7fe,2|2|dde0e4,10|9|748791,1|12|dfeef4,11|5|babbc4,1|8|aabac7",
+                        0.6, 0
+                );
+
+                System.out.println(ifpos[0]);
+
+                Thread.sleep(waittime);
+
+                while (ifpos[0] < 0){
+                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                    taskThread.checkPause();
+                    ifpos = DeviceHttpClient.findMultiColor(
+                            context.getDeviceId(), 40, 185, 560, 210,
+                            "415a6c",
+                            "11|0|496473,10|8|9eacb5,0|7|ccdfe6,7|5|f1f5f8,7|0|4c6675,9|9|758791,6|8|eff7fe,2|2|dde0e4,10|9|748791,1|12|dfeef4,11|5|babbc4,1|8|aabac7",
+                            0.6, 0
+                    );
+                    Thread.sleep(waittime);
+                }
+                // 如果找到选项，点击确认
+                if (ifpos[0] > 0) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "找到确认选项，点击确认");
+                    human.click(context.getDeviceId(), 627, 198, 30, 12);
+                    Thread.sleep(1300);
+                }
+
+
+
+
+                // 步骤3: 关闭背包（带验证）
+                if (detector.isBagOpen()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "关闭背包");
+                    human.click(context.getDeviceId(), 614, 34, 10, 10);
+                    Thread.sleep(waittime);
+
+                    // 验证是否成功关闭
+                    if (detector.isBagOpen()) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "警告：背包未成功关闭，继续执行");
+                    }
+                }
+                // 验证传送界面是否打开
+                if (!detector.isTeleportButtonVisible()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "警告：传送界面未正常打开，等待");
+                    Thread.sleep(waittime);
+
+                    // 二次验证
+                    if (!detector.isTeleportButtonVisible()) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "错误：传送界面仍未打开，终止导航");
+                        return;
+                    }
+                }
+
+
+
+                // 步骤4: 点击传送按钮（带重试）
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "点击传送按钮（尝试 " + attempt + "/3）");
+
+                    human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
+                    Thread.sleep(waittime * 2); // 延长等待时间
+
+                    // 验证是否成功到达
+                    String newArea = commonActions.ocrShibieDiqu();
+                    if (newArea.contains("大唐国境")) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "成功到达大唐国境");
+                        return;
+                    }
+
+                    if (attempt < 3) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "传送失败，重试中...");
+                    }
+                }
+
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "错误：多次尝试后仍未能到达大唐国境");
+            }
+        });
+
         sceneHandlerMap.put("五庄观", new SceneHandler() {
             @Override
-            public void enterScene() {
-                System.out.println("从长安南门进入建邺城");
+            public void enterScene() throws Exception {
+                DeviceHttpClient httpClient = new DeviceHttpClient();
+                GameStateDetector detector = new GameStateDetector(context,httpClient);
+                if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                taskThread.checkPause();
+                String currentArea = commonActions.ocrShibieDiqu();
+
+                if (currentArea.equals("五庄观")){
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "已在五庄观，无需导航");
+                    return;
+                }
+                toScene("大唐境外","631,74");
+                int[]currentpos =commonActions.ocrZuobiao();
+                while (currentpos[0]!=631 || currentpos[1]!=74){
+                    currentpos =commonActions.ocrZuobiao();
+                    Thread.sleep(2000);
+
+                }
+                // 步骤4: 点击传送按钮（带重试）
+                for (int attempt = 1; attempt <= 3; attempt++) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "点击传送按钮（尝试 " + attempt + "/3）");
+
+                    human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
+                    Thread.sleep(waittime * 3); // 延长等待时间
+
+                    // 验证是否成功到达
+                    String newArea = commonActions.ocrShibieDiqu();
+                    if (newArea.contains("五庄观")) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "成功到达五庄观");
+                        return;
+                    }
+
+                    if (attempt < 3) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "传送失败，重试中...");
+                    }
+                }
+
+
             }
         });
         sceneHandlerMap.put("普陀山", new SceneHandler() {
@@ -526,16 +819,17 @@ public class Luxian {
                             "已在普陀山，无需导航");
                     return;
                 }
-                toScene("大唐国境1");
+                toScene("大唐国境","215,65");
                 Thread.sleep(waittime);
-                commonActions.clickInputPos("215,65");
 
                 while (currentpos[0]!=215 || currentpos[1]!=65){
+                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                    taskThread.checkPause();
                     Thread.sleep(2000);
                     currentpos =commonActions.ocrZuobiao();
                 }
                 Thread.sleep(waittime);
-                human.click(context.getDeviceId(), 464, 264, 3, 6);
+                human.click(context.getDeviceId(), 468, 262, 3, 6);
 
                 Thread.sleep(2500);
                 if (detector.isshidewoyaoqu()) {
@@ -607,7 +901,7 @@ public class Luxian {
 
                 human.click(context.getDeviceId(), 622, 364, 5, 5);
                 Thread.sleep(waittime);
-// 步骤3: 关闭背包（带验证）
+                // 步骤3: 关闭背包（带验证）
                 if (detector.isBagOpen()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "关闭背包");
@@ -664,6 +958,11 @@ public class Luxian {
         });
     }
 
+    // 获取暂存的目标坐标
+    private int[] getTargetPosition() {
+        return targetPosition;
+    }
+
     /**
      * 方法1：只去场景（不需要坐标）
      */
@@ -680,14 +979,34 @@ public class Luxian {
      * 方法2：去场景并移动到坐标（如果场景支持）
      */
     public void toScene(String changjing, String mubiaozuobiao) throws Exception {
-        CommonActions commonActions = new CommonActions(context, taskThread);
+        // 解析并暂存目标坐标
+        try {
+            if (mubiaozuobiao != null && !mubiaozuobiao.isEmpty()) {
+                String[] posStr = mubiaozuobiao.split(",");
+                if (posStr.length == 2) {
+                    int x = Integer.parseInt(posStr[0].trim());
+                    int y = Integer.parseInt(posStr[1].trim());
+                    targetPosition = new int[]{x, y};
+                }
+            }
+        } catch (Exception e) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "解析目标坐标失败：" + e.getMessage());
+            targetPosition = null;
+        }
+
+        // 执行场景进入逻辑
         SceneHandler handler = sceneHandlerMap.get(changjing);
         if (handler == null) {
             System.out.println("未知场景：" + changjing);
             return;
         }
-        handler.enterScene();         // 先进入场景
-        commonActions.clickInputPos(mubiaozuobiao); // 再移动到坐标（场景可选择忽略）
+        handler.enterScene();
+
+        // 移动到目标坐标
+        CommonActions commonActions = new CommonActions(context, taskThread);
+        commonActions.clickInputPos(mubiaozuobiao);
+        // 清空暂存坐标
+        targetPosition = null;
     }
 
 
