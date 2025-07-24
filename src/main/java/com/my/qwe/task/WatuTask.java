@@ -164,6 +164,7 @@ public class WatuTask implements ITask {
                 commonActions.doubleclickBagGrid(context.getDeviceId(),gezishu-1);
 
                 removeBagMapBySlot(bagMapInfo);
+                System.out.println();
 
 
                 Thread.sleep(waittime);
