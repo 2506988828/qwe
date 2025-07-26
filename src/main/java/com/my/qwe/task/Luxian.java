@@ -38,8 +38,10 @@ public class Luxian {
         sceneHandlerMap.put("建邺城", new SceneHandler() {
             @Override
             public void enterScene() {
-                System.out.println("准备去建邺城");
-                commonActions.userFeixingfuToMudidi("建邺城");
+                String diqu = commonActions.ocrShibieDiqu();
+                if (!diqu.equals("建邺城")){
+                    // 先使用飞行符到傲来国
+                    commonActions.userFeixingfuToMudidi("建邺城");}
             }
         });
         sceneHandlerMap.put("东海湾", new SceneHandler() {
@@ -245,25 +247,11 @@ public class Luxian {
         });
         sceneHandlerMap.put("北俱芦洲", new SceneHandler() {
             @Override
-            public void enterScene() throws InterruptedException, IOException {
+            public void enterScene() throws Exception {
                 String diqu = commonActions.ocrShibieDiqu();
                 int []dangqianzuobiao = commonActions.ocrZuobiao();
                 if (!diqu.equals("花果山")){
-                    if (!diqu.equals("傲来国")){
-                        // 先使用飞行符到傲来国
-                        commonActions.userFeixingfuToMudidi("傲来国");}
-
-
-
-                    if (dangqianzuobiao[0]!=212 || dangqianzuobiao[1]!=141){
-                        commonActions.clickInputPos("212,141");}//打开地图输入坐标后关闭地图
-                    while (dangqianzuobiao[0]!=212 || dangqianzuobiao[1]!=141) {
-                        if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
-                        taskThread.checkPause();
-                        dangqianzuobiao = commonActions.ocrZuobiao();
-                        Thread.sleep(2000);
-                    }
-                    human.clickImg(context.getDeviceId(),"传送按钮",8,8);
+                    toScene("花果山","32,98");
                 }
                 diqu= commonActions.ocrShibieDiqu();
                 if (diqu.equals("花果山")&& (dangqianzuobiao[0]!=32 || dangqianzuobiao[1]!=98)){

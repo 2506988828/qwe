@@ -145,16 +145,17 @@ public class QutuTask implements ITask {
     // 其他接口方法（仅为完整实现）
     @Override
     public void start(TaskContext context, TaskThread thread) throws Exception {
+        System.out.println("进入取图任务");
         CommonActions commonActions = new CommonActions(context,thread);
         // 任务启动逻辑
         initConfig(context);
         //打开仓库
-        //commonActions.openJianyeCangku();
+        commonActions.openJianyeCangku();
 
         //识别背包空格子数
         List<Integer> konggezishu= commonActions.findcangkujiemianEmptyBagIndices(context.getDeviceId());
 
-        if (konggezishu.size() != 0) {//背包有空位的时候才执行
+        while (konggezishu.size() != 0) {//背包有空位的时候才执行
             WarehouseMapInfo cangkucangbaotu= loadFirstTreasureMap();
             if (cangkucangbaotu != null) {
                 commonActions.gotoPage(cangkucangbaotu.warehousePage);
@@ -164,8 +165,11 @@ public class QutuTask implements ITask {
                     konggezishu.remove(0);
                 }
             }
+            else {break;}
         }
 
+        Thread.sleep(1000);
+        commonActions.closeBag();
 
 
     }

@@ -89,65 +89,117 @@ public class CommonActions {
 
     /**
      * 识别当前所在的坐标（支持无括号格式，如192,133）
+     * 多次识别，当本次x坐标比上次减1且两次y坐标一致时返回结果
+     */
+    /**
+     * 识别当前所在的坐标（支持无括号格式，如192,133）
+     * 每次识别将区域x坐标减1，连续两次识别结果相同时返回
      */
     public int[] ocrZuobiao() {
-        int[] diququyu = {52, 31, 124, 50}; // 坐标识别区域
+        // 初始识别区域 [x, y, width, height]，后续每次x减1
+        int baseX = 52;
+        int baseY = 31;
+        int width = 124;
+        int height = 50;
+
+        int[] previousResult = null; // 缓存上一次识别的有效结果
+        int currentX = baseX; // 当前识别区域的x坐标
+        int retryCount = 0; // 识别计数器
+        final int MAX_RETRY = 20; // 最大识别次数，防止无限循环
+
         try {
-            TaskStepNotifier.notifyStep(context.getDeviceId(), "识别所在坐标（无括号格式）");
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "开始多次识别坐标（每次区域x减1）");
 
             String diqu = "";
-            while (true) {
+            while (retryCount < MAX_RETRY) {
+                retryCount++;
                 // 检查任务状态，终止时返回无效坐标
                 if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "任务终止，停止坐标识别");
                     return new int[]{-1, -1};
                 }
                 taskThread.checkPause();
 
+                // 当前识别区域（x坐标随次数递减）
+                int[] diququyu = {currentX, baseY, width, height};
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "第" + retryCount + "次识别，区域：[" + currentX + "," + baseY + "," + width + "," + height + "]");
+
                 // 调用OCR接口获取坐标文本
                 diqu = DeviceHttpClient.ocr(context.getDeviceId(), diququyu);
                 if (diqu == null || diqu.trim().isEmpty()) {
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "坐标识别为空，重试...");
-                    Thread.sleep(500); // 识别为空时短暂延迟再重试
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次识别为空，重试...");
+                    currentX--; // 即使识别为空，也调整区域x坐标
+                    Thread.sleep(500);
                     continue;
                 }
 
-                // 清理格式：移除所有可能的括号（包括中文括号），只保留数字和逗号
+                // 清理格式：移除所有括号和无关字符，统一使用逗号分隔
                 diqu = diqu.trim()
-                        .replace("(", "")   // 移除英文左括号
-                        .replace(")", "")   // 移除英文右括号
-                        .replace("（", "")  // 移除中文左括号（新增）
-                        .replace("）", "")  // 移除中文右括号（新增）
-                        .replace("。", ",")  // 替换中文句号为逗号
-                        .replace(".", ",");  // 替换英文句号为逗号
+                        .replaceAll("[()（）]", "") // 移除所有类型的括号
+                        .replaceAll("[。.]", ",")    // 替换句号为逗号
+                        .replaceAll("\\s+", "");    // 移除所有空格
 
-                // 关键：仅判断是否包含逗号，且逗号前后有数字
+                // 解析坐标
                 int commaIndex = diqu.indexOf(',');
-                if (commaIndex > 0 && commaIndex < diqu.length() - 1) {
-                    // 提取逗号前后的数字
-                    String xStr = diqu.substring(0, commaIndex).trim();
-                    String yStr = diqu.substring(commaIndex + 1).trim();
+                if (commaIndex <= 0 || commaIndex >= diqu.length() - 1) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次格式错误（" + diqu + "），重试...");
+                    currentX--; // 格式错误也调整区域x坐标
+                    Thread.sleep(500);
+                    continue;
+                }
 
-                    // 验证数字格式（仅包含数字）
-                    if (xStr.matches("\\d+") && yStr.matches("\\d+")) {
-                        int x = Integer.parseInt(xStr);
-                        int y = Integer.parseInt(yStr);
-                        TaskStepNotifier.notifyStep(context.getDeviceId(), "识别坐标成功：(" + x + "," + y + ")");
+                // 提取并验证数字
+                String xStr = diqu.substring(0, commaIndex);
+                String yStr = diqu.substring(commaIndex + 1);
+                if (!xStr.matches("\\d+") || !yStr.matches("\\d+")) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次包含非数字（" + diqu + "），重试...");
+                    currentX--; // 非数字也调整区域x坐标
+                    Thread.sleep(500);
+                    continue;
+                }
+
+                // 转换为整数坐标
+                int x = Integer.parseInt(xStr);
+                int y = Integer.parseInt(yStr);
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次识别结果：(" + x + "," + y + ")");
+
+                // 验证条件：本次结果与上次结果完全相同
+                if (previousResult != null) {
+                    if (x == previousResult[0] && y == previousResult[1]) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "连续两次识别结果一致，返回：(" + x + "," + y + ")");
                         return new int[]{x, y};
+                    } else {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "与上次结果不一致（上次：" + previousResult[0] + "," + previousResult[1] + "），继续识别...");
                     }
                 }
 
-                // 格式不正确，重试
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "坐标格式不正确（" + diqu + "），重试...");
+                // 缓存当前结果，准备下一次识别
+                previousResult = new int[]{x, y};
+                currentX--; // 核心：下一次识别的x坐标减1
                 Thread.sleep(500);
             }
+
+            // 达到最大重试次数仍未满足条件，返回最后一次有效结果或无效值
+            if (previousResult != null) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "达到最大识别次数，返回最后一次结果：(" + previousResult[0] + "," + previousResult[1] + ")");
+                return previousResult;
+            } else {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "多次识别失败，返回无效坐标");
+                return new int[]{-1, -1};
+            }
+
         } catch (IOException e) {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "OCR接口调用失败：" + e.getMessage());
             return new int[]{-1, -1};
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt(); // 保留中断状态
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "识别被中断");
             return new int[]{-1, -1};
         }
     }
+
+
 
 
     /**
@@ -996,7 +1048,7 @@ public class CommonActions {
                 Thread.sleep(100);
                 human.click(context.getDeviceId(), targetX, targetY, 5, 5);  // 增加点击范围容错
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "输入字符：" + ch + "（坐标：" + targetX + "," + targetY + "）");
-                Thread.sleep(new java.util.Random().nextInt(200) + 200);
+                Thread.sleep(new java.util.Random().nextInt(20) + 20);
             }
 
             // 步骤5：最终确认并关闭地图
@@ -1087,7 +1139,9 @@ public class CommonActions {
     //打开建邺仓库，从当前已经在建邺城开始
     public void openJianyeCangku(){
         String diqu = ocrShibieDiqu();
+        CommonActions commonActions = new CommonActions(context,taskThread);
         if(!diqu.equals("建邺城") ){
+            commonActions.userFeixingfuToMudidi("建邺城");
         }
         HumanLikeController human = new HumanLikeController(taskThread);
         String str="56,33";

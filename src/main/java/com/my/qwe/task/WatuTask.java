@@ -1,5 +1,6 @@
 package com.my.qwe.task;
 
+import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.task.config.IniConfigLoader;
 
 import java.util.*;
@@ -131,47 +132,71 @@ public class WatuTask implements ITask {
     @Override
     public void start(TaskContext context, TaskThread thread) throws Exception {
         initConfig(context);
+        Luxian luxian = new Luxian(context,thread);
+        DeviceHttpClient httpClient = new DeviceHttpClient();
+        GameStateDetector gameStateDetector = new GameStateDetector(context,httpClient);
         CommonActions commonActions = new CommonActions(context,thread );
         Properties watuProps = configLoader.getSection(SECTION_WATU);
         int baotuzongshu = Integer.parseInt(watuProps.getProperty(KEY_TOTALSHU));
         int yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
         BagMapInfo bagMapInfo = loadFirstBagTreasureMap();
+        int gezishu,x,y;
+        String scence,pos;
+        int[] jiancezuobiao;
+
         QutuTask qutuTask = new QutuTask();
 
 
-        while (yiwashu<=baotuzongshu  && (!thread.isStopped() && !Thread.currentThread().isInterrupted()) ) {
-            if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
+        while (yiwashu<=baotuzongshu   && (!thread.isStopped() && !Thread.currentThread().isInterrupted()) ) {
+            if (thread.isStopped() || Thread.currentThread().isInterrupted()) break;
             thread.checkPause();
-            qutuTask.start(context,thread);
+
+            bagMapInfo = loadFirstBagTreasureMap();
+            if (bagMapInfo==null) {
+                qutuTask.start(context, thread);
+            }
             bagMapInfo = loadFirstBagTreasureMap();
             while (bagMapInfo != null) {
                 if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
-                Luxian luxian = new Luxian(context,thread);
-                int gezishu =  bagMapInfo.getBagSlot();
-                String scence = bagMapInfo.getScene();
-                int x = bagMapInfo.getX();
-                int y = bagMapInfo.getY();
-                String pos = x+","+y;
+
+                gezishu =  bagMapInfo.getBagSlot();
+                scence= bagMapInfo.getScene();
+                x= bagMapInfo.getX();
+                y = bagMapInfo.getY();
+                pos  = x+","+y;
                 luxian.toScene(scence,pos);
-                int[] jiancezuobiao=commonActions.ocrZuobiao();
+                jiancezuobiao=commonActions.ocrZuobiao();
                 while (jiancezuobiao[0]!=x || jiancezuobiao[1]!=y) {
                     if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
                     Thread.sleep(2000);
                     jiancezuobiao=commonActions.ocrZuobiao();
                 }
                 commonActions.openBag();
-                Thread.sleep(waittime);
+                Thread.sleep(new Random().nextInt(200) + 300);
                 commonActions.doubleclickBagGrid(context.getDeviceId(),gezishu-1);
+                Thread.sleep(new Random().nextInt(200) + 300);
 
                 removeBagMapBySlot(bagMapInfo);
                 System.out.println();
 
 
-                Thread.sleep(waittime);
+                Thread.sleep(new Random().nextInt(200) + 300);
                 commonActions.closeBag();
+
+                Thread.sleep(new Random().nextInt(200) + 300);
+
+                while (gameStateDetector.isInBattle()){//判断是否进入战斗
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),"正在战斗中...");
+                    Thread.sleep(new Random().nextInt(200) + 300);
+
+                }
+
+
+
 
                 bagMapInfo = loadFirstBagTreasureMap();
                     yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
+                    Thread.sleep(new Random().nextInt(200) + 300);
             }
         }
     }
