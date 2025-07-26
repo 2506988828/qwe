@@ -27,6 +27,10 @@ public class WatuTask implements ITask {
     public void initConfig(TaskContext context) {
         this.context = context;
         this.configLoader = new IniConfigLoader(context.getDeviceName());
+        
+        // 添加配置文件路径调试信息
+        String deviceId = context.getDeviceId();
+        TaskStepNotifier.notifyStep(deviceId, "初始化配置文件: " + context.getDeviceName() + ".ini");
     }
 
     /**
@@ -38,8 +42,8 @@ public class WatuTask implements ITask {
         TaskStepNotifier.notifyStep(deviceId, "开始加载配置文件中背包的藏宝图信息...");
 
         try {
-            // 1. 读取[挖图]区块配置
-            Properties watuProps = configLoader.getSection(SECTION_WATU);
+            // 1. 读取[挖图]区块配置（强制重新加载）
+            Properties watuProps = configLoader.getSectionReload(SECTION_WATU);
 
             if (watuProps.isEmpty()) {
                 TaskStepNotifier.notifyStep(deviceId, "配置文件中[挖图]区块为空");
@@ -136,24 +140,51 @@ public class WatuTask implements ITask {
         DeviceHttpClient httpClient = new DeviceHttpClient();
         GameStateDetector gameStateDetector = new GameStateDetector(context,httpClient);
         CommonActions commonActions = new CommonActions(context,thread );
+        MovementStateDetector movementDetector = new MovementStateDetector(context, commonActions, gameStateDetector);
         Properties watuProps = configLoader.getSection(SECTION_WATU);
-        int baotuzongshu = Integer.parseInt(watuProps.getProperty(KEY_TOTALSHU));
-        int yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
-        BagMapInfo bagMapInfo = loadFirstBagTreasureMap();
+        int kaituwancheng = Integer.parseInt(watuProps.getProperty("开图完成"));
+        int dutuwancheng = Integer.parseInt(watuProps.getProperty("读图完成"));
+
+        BagMapInfo bagMapInfo;
         int gezishu,x,y;
         String scence,pos;
         int[] jiancezuobiao;
+        KaituTask kaituTask = new KaituTask();
+        DutuTask dutuTask = new DutuTask();
+
+
+        if (kaituwancheng == 0) {
+            kaituTask.start(context, thread);
+            configLoader.setProperty(SECTION_WATU, "开图完成", "1");
+            configLoader.save();
+        }
+        TaskThread.sleep(new Random().nextInt(400) + 300);
+        if (dutuwancheng == 0) {
+            dutuTask.start(context, thread);
+        }
+
+        TaskThread.sleep(new Random().nextInt(400) + 300);
 
         QutuTask qutuTask = new QutuTask();
+        qutuTask.initConfig(context);
+
+        watuProps = configLoader.getSection(SECTION_WATU);
+        int baotuzongshu = Integer.parseInt(watuProps.getProperty(KEY_TOTALSHU)==null? String.valueOf(0) :watuProps.getProperty(KEY_TOTALSHU));
+        int yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU)==null? String.valueOf(0) :watuProps.getProperty(KEY_YIWASHU));
+        if (baotuzongshu == 0 && yiwashu == 0) {}
 
 
-        while (yiwashu<=baotuzongshu   && (!thread.isStopped() && !Thread.currentThread().isInterrupted()) ) {
+        while ((qutuTask.loadFirstTreasureMap() != null ||loadFirstBagTreasureMap() != null)
+                && (!thread.isStopped() && !Thread.currentThread().isInterrupted()) ) {
             if (thread.isStopped() || Thread.currentThread().isInterrupted()) break;
             thread.checkPause();
 
             bagMapInfo = loadFirstBagTreasureMap();
             if (bagMapInfo==null) {
                 qutuTask.start(context, thread);
+                // 强制重新加载配置文件，确保获取最新数据
+                watuProps = configLoader.getSectionReload(SECTION_WATU);
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "重新加载配置文件，获取最新数据");
             }
             bagMapInfo = loadFirstBagTreasureMap();
             while (bagMapInfo != null) {
@@ -165,15 +196,28 @@ public class WatuTask implements ITask {
                 y = bagMapInfo.getY();
                 pos  = x+","+y;
                 luxian.toScene(scence,pos);
-                jiancezuobiao=commonActions.ocrZuobiao();
-                while (jiancezuobiao[0]!=x || jiancezuobiao[1]!=y) {
-                    if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
-                    Thread.sleep(2000);
-                    jiancezuobiao=commonActions.ocrZuobiao();
+                
+                // 使用新的移动状态检测功能
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "开始前往目的地: (" + x + "," + y + ")");
+                
+                // 等待角色到达目的地，使用移动状态检测
+                boolean reachedDestination = movementDetector.waitForDestination(x, y, 60); // 60秒超时
+                
+                if (!reachedDestination) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "等待到达目的地超时，尝试处理移动异常");
+                    boolean handled = movementDetector.handleAbnormalMovement(x, y, 3); // 最多重试3次
+                    
+                    if (!handled) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "处理移动异常失败，跳过当前宝图");
+                        continue;
+                    }
                 }
+                
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "已到达目的地: (" + x + "," + y + ")");
                 commonActions.openBag();
                 Thread.sleep(new Random().nextInt(200) + 300);
                 commonActions.doubleclickBagGrid(context.getDeviceId(),gezishu-1);
+                watuProps = configLoader.getSection(SECTION_WATU);
                 Thread.sleep(new Random().nextInt(200) + 300);
 
                 removeBagMapBySlot(bagMapInfo);
@@ -195,8 +239,10 @@ public class WatuTask implements ITask {
 
 
                 bagMapInfo = loadFirstBagTreasureMap();
-                    yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
+                    yiwashu = 1+Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
                     Thread.sleep(new Random().nextInt(200) + 300);
+                // 强制重新加载配置文件，确保获取最新数据
+                watuProps = configLoader.getSectionReload(SECTION_WATU);
             }
         }
     }

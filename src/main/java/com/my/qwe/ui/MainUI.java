@@ -25,8 +25,8 @@ public class MainUI extends JFrame {
     private final List<String> taskTypes = List.of("取图", "接图", "挖图", "打图", "师门", "转图", "开图", "读图");
 
     public MainUI() {
-        setTitle("多设备控制中心");
-        setSize(1200, 800);
+        setTitle("控制中心");
+        setSize(1000, 400);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
 

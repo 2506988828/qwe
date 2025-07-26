@@ -150,7 +150,10 @@ public class QutuTask implements ITask {
         // 任务启动逻辑
         initConfig(context);
         //打开仓库
-        commonActions.openJianyeCangku();
+        if (!commonActions.ifOpenCangku()) {
+
+            commonActions.openJianyeCangku();
+        }
 
         //识别背包空格子数
         List<Integer> konggezishu= commonActions.findcangkujiemianEmptyBagIndices(context.getDeviceId());

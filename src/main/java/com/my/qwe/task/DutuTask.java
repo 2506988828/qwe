@@ -14,7 +14,14 @@ public class DutuTask implements ITask {
         TaskStepNotifier.notifyStep(context.getDeviceId(), "===== 开始读图任务 =====");
 
         try {
+            if (!common.ifOpenCangku()){
+                common.openJianyeCangku();
+            }
             readAndSaveWarehouseTreasures(context, thread, common);
+            TaskThread.sleep(new Random().nextInt(400) + 300);
+            if (common.ifOpenCangku()){
+                common.closeWarehouse();
+            }
             TaskStepNotifier.notifyStep(context.getDeviceId(), "===== 读图任务完成 =====");
         } catch (Exception e) {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "任务异常终止：" + e.getMessage());
@@ -63,7 +70,7 @@ public class DutuTask implements ITask {
 
                 // 单击宝图
                 common.clickCangkuGrid(deviceId, index);
-                Thread.sleep(waittime);
+                Thread.sleep(new Random().nextInt(200) + 300);
 
                 // 第一步：识别地区
                 String area = common.recognizeMapArea(context);
@@ -119,7 +126,9 @@ public class DutuTask implements ITask {
 
             if (page < totalPages) common.pageDown();
         }
-
+        IniConfigLoader config = new IniConfigLoader(deviceName);
+        config.setProperty("挖图","读图完成","1");
+        config.save();
         TaskStepNotifier.notifyStep(deviceId,
                 "读图完成：新增" + newCount + "个，跳过" + duplicateCount +
                         "个重复项，失败" + failedCount + "个，最终总数：" + currentTotal);
@@ -181,7 +190,7 @@ public class DutuTask implements ITask {
                         currentRect[2] + a, // 宽度+2
                         currentRect[3] + new Random().nextInt(3)  // 高度+2
                 };
-                Thread.sleep(waittime); // 等待后继续
+                Thread.sleep(new Random().nextInt(200) + 300); // 等待后继续
             }
         }
 
@@ -284,7 +293,6 @@ public class DutuTask implements ITask {
                                   Map<String, List<TreasureInfo>> warehouseMap) {
         try {
             IniConfigLoader config = new IniConfigLoader(deviceName);
-            config.clearSection("挖图");
 
             // 写入基础信息
             config.setProperty("挖图", "描述", baseInfo.get("描述"));

@@ -85,9 +85,12 @@ public class KaituTask implements ITask {
                     }
                 }
             }
-
+            GameStateDetector detector = new GameStateDetector(context,new DeviceHttpClient());
+            if (common.ifOpenCangku()){
+                common.closeWarehouse();
+            }
             // 标记任务完成
-            IniConfigLoader.setTaskConfig(context.getDeviceName(), "开图", "是否完成开图", "1");
+            IniConfigLoader.setTaskConfig(context.getDeviceName(), "挖图", "开图完成", "1");
             TaskStepNotifier.notifyStep(context.getDeviceId(), "===== 开图任务完成 =====");
 
         } catch (Exception e) {

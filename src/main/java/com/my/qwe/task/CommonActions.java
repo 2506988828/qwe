@@ -604,8 +604,8 @@ public class CommonActions {
                 int[] pos = DeviceHttpClient.findMultiColor(
                         deviceId,
                         rect[0], rect[1], rect[2], rect[3],
-                        "b8add9", // 空格子的特征色
-                        "4|19|baacd9,25|19|baacd9,16|14|baacd9,11|6|baacd9,0|27|baacd9,16|29|b9add9,24|12|baacd9,20|1|baacd9,28|23|baacd9,10|21|baacd9,29|27|baacd9,8|4|baacd9,9|29|b9add9,18|27|baacd9,10|24|baacd9,23|19|baacd9,5|23|baacd9,24|2|baacd9,9|1|baacd9,24|29|b9add9,8|12|baacd9,31|14|b9add9,30|23|baacd9,2|2|baacd9,9|20|baacd9,24|24|baacd9,2|0|b8add9,26|4|baacd9", // 空格子的多点校验（复用原参数）
+                        "b1a6dd", // 空格子的特征色
+                        "27|19|c6b6e9,28|3|c6b6e9,19|26|c6b6e9,13|12|c6b6e9,6|16|c6b6e9,11|31|c6b6e9,1|1|c5b6ea,7|10|c6b6e9,32|16|c6b6e9,27|21|c6b6e9,32|14|c6b6e9,22|2|c6b6e9,24|31|c6b6e9,25|29|c6b6e9,32|20|c6b6e9,2|12|c5b6ea,4|10|c6b6e9,13|8|c6b6e9,16|17|c6b6e9,4|13|c6b6e9,1|4|c5b7ec,15|20|c6b6e9,6|24|c6b6e9,21|10|c6b6e9,13|29|c6b6e9,31|21|c6b6e9,19|30|c6b6e9,24|0|b6a8de,9|7|c6b5eb,12|14|c6b6e9,14|21|c6b6e9,7|20|c6b6e9,6|22|c6b6e9", // 空格子的多点校验（复用原参数）
                         0.8, 0
                 );
                 // 如果找到空格子（pos[0]>0），立即返回当前格子索引i
@@ -627,7 +627,7 @@ public class CommonActions {
         for (int i = 0; i < grids.size(); i++) {
             int[] rect = grids.get(i);
             try {
-                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "b8add9","4|19|baacd9,25|19|baacd9,16|14|baacd9,11|6|baacd9,0|27|baacd9,16|29|b9add9,24|12|baacd9,20|1|baacd9,28|23|baacd9,10|21|baacd9,29|27|baacd9,8|4|baacd9,9|29|b9add9,18|27|baacd9,10|24|baacd9,23|19|baacd9,5|23|baacd9,24|2|baacd9,9|1|baacd9,24|29|b9add9,8|12|baacd9,31|14|b9add9,30|23|baacd9,2|2|baacd9,9|20|baacd9,24|24|baacd9,2|0|b8add9,26|4|baacd9",0.8,0);
+                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "b1a6dd","27|19|c6b6e9,28|3|c6b6e9,19|26|c6b6e9,13|12|c6b6e9,6|16|c6b6e9,11|31|c6b6e9,1|1|c5b6ea,7|10|c6b6e9,32|16|c6b6e9,27|21|c6b6e9,32|14|c6b6e9,22|2|c6b6e9,24|31|c6b6e9,25|29|c6b6e9,32|20|c6b6e9,2|12|c5b6ea,4|10|c6b6e9,13|8|c6b6e9,16|17|c6b6e9,4|13|c6b6e9,1|4|c5b7ec,15|20|c6b6e9,6|24|c6b6e9,21|10|c6b6e9,13|29|c6b6e9,31|21|c6b6e9,19|30|c6b6e9,24|0|b6a8de,9|7|c6b5eb,12|14|c6b6e9,14|21|c6b6e9,7|20|c6b6e9,6|22|c6b6e9",0.8,0);
                 if (pos != null && pos[0] > 0 && pos[1] > 0) {
                     matchedIndices.add(i); // 找到则加入编号列表
                 }
@@ -646,7 +646,7 @@ public class CommonActions {
         for (int i = 0; i < grids.size(); i++) {
             int[] rect = grids.get(i);
             try {
-                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "b8add9","4|19|baacd9,25|19|baacd9,16|14|baacd9,11|6|baacd9,0|27|baacd9,16|29|b9add9,24|12|baacd9,20|1|baacd9,28|23|baacd9,10|21|baacd9,29|27|baacd9,8|4|baacd9,9|29|b9add9,18|27|baacd9,10|24|baacd9,23|19|baacd9,5|23|baacd9,24|2|baacd9,9|1|baacd9,24|29|b9add9,8|12|baacd9,31|14|b9add9,30|23|baacd9,2|2|baacd9,9|20|baacd9,24|24|baacd9,2|0|b8add9,26|4|baacd9",0.8,0);
+                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "b1a6dd","27|19|c6b6e9,28|3|c6b6e9,19|26|c6b6e9,13|12|c6b6e9,6|16|c6b6e9,11|31|c6b6e9,1|1|c5b6ea,7|10|c6b6e9,32|16|c6b6e9,27|21|c6b6e9,32|14|c6b6e9,22|2|c6b6e9,24|31|c6b6e9,25|29|c6b6e9,32|20|c6b6e9,2|12|c5b6ea,4|10|c6b6e9,13|8|c6b6e9,16|17|c6b6e9,4|13|c6b6e9,1|4|c5b7ec,15|20|c6b6e9,6|24|c6b6e9,21|10|c6b6e9,13|29|c6b6e9,31|21|c6b6e9,19|30|c6b6e9,24|0|b6a8de,9|7|c6b5eb,12|14|c6b6e9,14|21|c6b6e9,7|20|c6b6e9,6|22|c6b6e9",0.8,0);
                 if (pos != null && pos[0] > 0 && pos[1] > 0) {
                     matchedIndices.add(i); // 找到则加入编号列表
                 }
@@ -1179,7 +1179,7 @@ public class CommonActions {
         while (zizuo[0]>0 || zijuese[0]>0){
             try {
                 //判断点击仓库管理员后有没有出现打开仓库选项
-                zizuo = DeviceHttpClient.findMultiColor(context.getDeviceId(),0,0,735,401,"3e5568","3|11|c3d2de,2|7|9dacbd,5|13|3b5a68,2|10|6e858d,6|15|315565,1|0|3f5568,2|8|dee9f2,10|15|b2b6c1,16|12|2e5562",0.8,0);
+                zizuo = DeviceHttpClient.findImage(context.getDeviceId(),"打开仓库按钮",0.8);
                 //判断点击仓库管理员后是否有其他选项
                 System.out.println(zizuo[0]);
                 zijuese = DeviceHttpClient.findMultiColor(context.getDeviceId(),0,0,735,401,"101c1c","22|6|dbdde1,16|4|ced1d6,9|6|56575a,4|0|516161,11|10|d5d6de,23|10|2c2d35,6|5|727175,5|14|182028,18|9|dee1e5,24|5|a6a4a9,19|0|39494c,21|2|cacbd0,18|11|4e5056",0.8,0);

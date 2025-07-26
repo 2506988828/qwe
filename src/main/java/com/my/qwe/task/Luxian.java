@@ -13,13 +13,13 @@ public class Luxian {
     private final TaskContext context;
     private final TaskThread taskThread;
     private final Map<String, SceneHandler> sceneHandlerMap = new HashMap<>();
-    private int waittime=(new java.util.Random().nextInt(201) + 300);
+    private int waittime = (new java.util.Random().nextInt(201) + 300);
+    private MovementStateDetector movementDetector;
 
     // 定义需要多路线的场景及对应的子路线名
     private static final Map<String, String[]> MULTI_ROUTE_SCENES = new HashMap<>();
     static {
         MULTI_ROUTE_SCENES.put("大唐国境", new String[]{"大唐国境1", "大唐国境2"});
-        // 可添加其他多路线场景
         MULTI_ROUTE_SCENES.put("大唐境外", new String[]{"大唐境外1", "大唐境外2"});
     }
     // 暂存目标坐标（用于路线判断）
@@ -28,20 +28,58 @@ public class Luxian {
     public Luxian(TaskContext context, TaskThread taskThread) {
         this.context = context;
         this.taskThread = taskThread;
+        this.movementDetector = new MovementStateDetector(context, new CommonActions(context, taskThread), new GameStateDetector(context, new DeviceHttpClient()));
         initSceneHandlers();
     }
 
-
-    private void initSceneHandlers()  {
+    private void waitForPosition(int x, int y, int timeoutSeconds) throws IOException, InterruptedException {
+        long start = System.currentTimeMillis();
         CommonActions commonActions = new CommonActions(context, taskThread);
-        HumanLikeController human =new HumanLikeController(taskThread);
+        while ((System.currentTimeMillis() - start) < timeoutSeconds * 1000L) {
+            int[] current = commonActions.ocrZuobiao();
+            if (current[0] == x && current[1] == y) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "已到达目的地(" + x + "," + y + ")");
+                return;
+            }
+            MovementStateDetector.MovementState state = movementDetector.detectMovementState(x, y);
+            switch (state) {
+                case MOVING_TO_DESTINATION:
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "角色正在正常前往目的地(" + x + "," + y + ")");
+                    break;
+                case STATIONARY:
+                case ABNORMAL_MOVEMENT:
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "检测到异常，尝试重新激活");
+                    boolean handled = movementDetector.handleAbnormalMovement(x, y, 3);
+                    if (!handled) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "多次尝试后仍未能修正移动异常，跳过");
+                        return;
+                    }
+                    break;
+                case IN_BATTLE:
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "角色正在战斗中，等待战斗结束");
+                    while (movementDetector.detectMovementState(x, y) == MovementStateDetector.MovementState.IN_BATTLE) {
+                        Thread.sleep(1000);
+                    }
+                    break;
+                case UNKNOWN:
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "无法识别移动状态，跳过");
+                    return;
+            }
+            Thread.sleep(5000);
+        }
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "等待超时，未能到达目的地(" + x + "," + y + ")");
+    }
+
+    private void initSceneHandlers() {
+        CommonActions commonActions = new CommonActions(context, taskThread);
+        HumanLikeController human = new HumanLikeController(taskThread);
         sceneHandlerMap.put("建邺城", new SceneHandler() {
             @Override
-            public void enterScene() {
+            public void enterScene() throws Exception {
                 String diqu = commonActions.ocrShibieDiqu();
-                if (!diqu.equals("建邺城")){
-                    // 先使用飞行符到傲来国
-                    commonActions.userFeixingfuToMudidi("建邺城");}
+                if (!diqu.equals("建邺城")) {
+                    commonActions.userFeixingfuToMudidi("建邺城");
+                }
             }
         });
         sceneHandlerMap.put("东海湾", new SceneHandler() {
@@ -52,99 +90,45 @@ public class Luxian {
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "准备去东海湾");
 
                 String diqu = commonActions.ocrShibieDiqu();
-                if (!diqu.equals("傲来国")){
-                // 先使用飞行符到傲来国
-                commonActions.userFeixingfuToMudidi("傲来国");}
-                int []dangqianzuobiao = commonActions.ocrZuobiao();
-                if(dangqianzuobiao[0]!=164||dangqianzuobiao[1]!=15){
-
-                    commonActions.clickInputPos("164,15"); // 到傲来国的东海湾传送点附近
+                if (!diqu.equals("傲来国")) {
+                    commonActions.userFeixingfuToMudidi("傲来国");
                 }
-
-                // 新增：识别当前坐标，等待到达指定位置(164,15)
-                int maxWaitTime = 100; // 最大等待时间(秒)
-                long startTime = System.currentTimeMillis();
-                boolean positionReached = false;
-
-                while ((System.currentTimeMillis() - startTime) / 1000 < maxWaitTime) {
-                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
-                    taskThread.checkPause();
-
-                    // 每2秒识别一次坐标
-                    int[] ocrzuobiao = commonActions.ocrZuobiao();
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),
-                            "当前坐标识别结果: " + Arrays.toString(ocrzuobiao));
-
-                    // 判断是否到达目标坐标(164,15)
-                    if (ocrzuobiao[0] == 164 && ocrzuobiao[1] == 15) {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(),
-                                "已到达目标坐标(164,15)，等待2秒后继续");
-                        positionReached = true;
-                        Thread.sleep(2000); // 额外等待2秒
-                        break;
-                    }
-
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),
-                            "未到达目标坐标，继续等待...");
-                    Thread.sleep(2000); // 等待2秒后再次识别
+                int[] dangqianzuobiao = commonActions.ocrZuobiao();
+                if (dangqianzuobiao[0] != 164 || dangqianzuobiao[1] != 15) {
+                    commonActions.clickInputPos("164,15");
+                    waitForPosition(164, 15, 60);
                 }
-
-                if (!positionReached) {
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),
-                            "警告：超时未到达目标坐标(164,15)，继续执行后续操作");
-                }
-
-                // 后续逻辑保持不变
                 Thread.sleep(waittime);
                 human.click(context.getDeviceId(), 429, 181, 4, 10);
                 Thread.sleep(waittime);
                 // 点击船夫并检查选项，最多重试3次
                 int maxRetry = 4;
                 int retryCount = 0;
-
                 while (retryCount < maxRetry) {
                     Thread.sleep(1000);
                     if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
                     taskThread.checkPause();
-
-                    // 识别当前地区
                     String dangqiandiqu = commonActions.ocrShibieDiqu();
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),
-                            "当前地区识别结果: " + dangqiandiqu);
-
-                    // 如果已经在东海湾，直接退出
                     if ("东海湾".equals(dangqiandiqu)) {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(),
-                                "已在东海湾，退出导航流程");
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "已在东海湾，退出导航流程");
                         return;
                     }
-
-                    // 检查是否出现"是的，我要去"选项
                     int[] ifpos = DeviceHttpClient.findMultiColor(
                             context.getDeviceId(), 40, 185, 560, 210,
                             "415a6c",
                             "11|0|496473,10|8|9eacb5,0|7|ccdfe6,7|5|f1f5f8,7|0|4c6675,9|9|758791,6|8|eff7fe,2|2|dde0e4,10|9|748791,1|12|dfeef4,11|5|babbc4,1|8|aabac7",
                             0.6, 0
                     );
-
-                    // 如果找到选项，点击确认
                     if (ifpos[0] > 0) {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(),
-                                "找到确认选项，点击确认");
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "找到确认选项，点击确认");
                         human.click(context.getDeviceId(), 627, 198, 30, 12);
                         Thread.sleep(waittime);
                         continue;
                     }
-
-                    // 未找到选项，重试点击船夫
                     retryCount++;
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),
-                            "未找到确认选项，重试点击船夫（第" + retryCount + "次）");
-
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "未找到确认选项，重试点击船夫（第" + retryCount + "次）");
                 }
-
-                TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "警告：多次尝试后仍未能到达东海湾");
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "警告：多次尝试后仍未能到达东海湾");
             }
         });
         sceneHandlerMap.put("傲来国", new SceneHandler() {
@@ -200,7 +184,7 @@ public class Luxian {
 
         sceneHandlerMap.put("女儿村", new SceneHandler() {
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws InterruptedException, IOException {
 
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("女儿村")){
@@ -212,6 +196,7 @@ public class Luxian {
 
                     if (dangqianzuobiao[0]!=9 || dangqianzuobiao[1]!=141){
                     commonActions.clickInputPos("9,141");}//打开地图输入坐标后关闭地图
+                    waitForPosition(9, 141, 60);
                     while (dangqianzuobiao[0]!=9 || dangqianzuobiao[1]!=141) {
                         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                         taskThread.checkPause();
@@ -224,7 +209,7 @@ public class Luxian {
         });
         sceneHandlerMap.put("花果山", new SceneHandler() {
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws InterruptedException, IOException {
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("花果山")){
                     if (!diqu.equals("傲来国")){
@@ -235,6 +220,7 @@ public class Luxian {
 
                     if (dangqianzuobiao[0]!=212 || dangqianzuobiao[1]!=141){
                         commonActions.clickInputPos("212,141");}//打开地图输入坐标后关闭地图
+                    waitForPosition(212,141,180);
                     while (dangqianzuobiao[0]!=212 || dangqianzuobiao[1]!=141) {
                         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                         taskThread.checkPause();
@@ -256,6 +242,7 @@ public class Luxian {
                 diqu= commonActions.ocrShibieDiqu();
                 if (diqu.equals("花果山")&& (dangqianzuobiao[0]!=32 || dangqianzuobiao[1]!=98)){
                     commonActions.clickInputPos("32,98");//到花果山土地NPC旁边
+                    waitForPosition(32,98,180);
                     while (dangqianzuobiao[0]!=32 || dangqianzuobiao[1]!=98) {
                         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                         taskThread.checkPause();
@@ -280,7 +267,7 @@ public class Luxian {
         });
         sceneHandlerMap.put("长寿郊外", new SceneHandler() {
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws InterruptedException, IOException {
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("长寿郊外")){
                     if (!diqu.equals("长寿村")){
@@ -291,6 +278,7 @@ public class Luxian {
 
                     if (dangqianzuobiao[0]!=145 || dangqianzuobiao[1]!=6){
                         commonActions.clickInputPos("145,6");}//打开地图输入坐标后关闭地图
+                    waitForPosition(145,6,180);
                     while (dangqianzuobiao[0]!=145 || dangqianzuobiao[1]!=6) {
                         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                         taskThread.checkPause();
@@ -358,18 +346,17 @@ public class Luxian {
         });
         sceneHandlerMap.put("朱紫国", new SceneHandler() {
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws InterruptedException, IOException {
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("朱紫国")){
                     // 先使用飞行符到傲来国
                     commonActions.userFeixingfuToMudidi("朱紫国");
-                    Thread.sleep(waittime);
                 }
             }
         });
         sceneHandlerMap.put("麒麟山", new SceneHandler() {
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws InterruptedException, IOException {
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("麒麟山")){
                     if (!diqu.equals("朱紫国")){
@@ -380,6 +367,7 @@ public class Luxian {
 
                     if (dangqianzuobiao[0]!=2 || dangqianzuobiao[1]!=111){/// /2，111为朱紫国到麒麟山的传送点
                         commonActions.clickInputPos("2,111");}//打开地图输入坐标后关闭地图
+                    waitForPosition(2,111,180);
                     while (dangqianzuobiao[0]!=2 || dangqianzuobiao[1]!=111) {
                         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                         taskThread.checkPause();
@@ -387,14 +375,13 @@ public class Luxian {
                         Thread.sleep(2000);
                     }
                     human.clickImg(context.getDeviceId(),"传送按钮",8,8);
-                    Thread.sleep(waittime);
                 }
             }
         });
         sceneHandlerMap.put("大唐境外1", new SceneHandler() {
             //此方法用于到大唐境外x坐标小于340的情况
             @Override
-            public void enterScene() throws InterruptedException {
+            public void enterScene() throws InterruptedException, IOException {
                 String diqu = commonActions.ocrShibieDiqu();
                 if (!diqu.equals("大唐境外")){
                     if (!diqu.equals("朱紫国")){
@@ -405,6 +392,7 @@ public class Luxian {
 
                     if (dangqianzuobiao[0]!=8 || dangqianzuobiao[1]!=3){/// /8，3为朱紫国到大唐境外的传送点
                         commonActions.clickInputPos("8,3");}//打开地图输入坐标后关闭地图
+                    waitForPosition(8,3,180);
                     while (dangqianzuobiao[0]!=8 || dangqianzuobiao[1]!=3) {
                         if (taskThread.isStopped()||Thread.currentThread().isInterrupted()) return; ;
                         taskThread.checkPause();
@@ -412,7 +400,6 @@ public class Luxian {
                         Thread.sleep(2000);
                     }
                     human.clickImg(context.getDeviceId(),"传送按钮",8,8);
-                    Thread.sleep(waittime);
                 }
             }
         });
@@ -440,7 +427,6 @@ public class Luxian {
                             "点击传送按钮（尝试 " + attempt + "/3）");
 
                     human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
-                    Thread.sleep(waittime * 2); // 延长等待时间
 
                     // 验证是否成功到达
                     String newArea = commonActions.ocrShibieDiqu();
@@ -485,7 +471,6 @@ public class Luxian {
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
                         "准备前往大唐国境...");
                 commonActions.openBag();
-                Thread.sleep(waittime);
                 // 步骤1: 查找并使用红色飞行棋（带重试）
                 for (int attempt = 1; attempt <= 3; attempt++) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
@@ -498,9 +483,8 @@ public class Luxian {
                                 "找到红色飞行棋，双击使用");
 
                         human.doubleclick(context.getDeviceId(),
-                                feixingqiPos[0], feixingqiPos[1], 5,5);
+                        feixingqiPos[0], feixingqiPos[1], 5,5);
 
-                        Thread.sleep(waittime);
                         break;
                     }
 
@@ -521,13 +505,11 @@ public class Luxian {
                         "点击大唐国境传送点");
 
                 human.click(context.getDeviceId(), 109, 362, 5, 5);
-                Thread.sleep(waittime);
 // 步骤3: 关闭背包（带验证）
                 if (detector.isBagOpen()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "关闭背包");
                     human.click(context.getDeviceId(), 614, 34, 10, 10);
-                    Thread.sleep(waittime);
 
                     // 验证是否成功关闭
                     if (detector.isBagOpen()) {
@@ -539,7 +521,6 @@ public class Luxian {
                 if (!detector.isTeleportButtonVisible()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "警告：传送界面未正常打开，等待");
-                    Thread.sleep(waittime);
 
                     // 二次验证
                     if (!detector.isTeleportButtonVisible()) {
@@ -557,7 +538,6 @@ public class Luxian {
                             "点击传送按钮（尝试 " + attempt + "/3）");
 
                     human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
-                    Thread.sleep(waittime * 2); // 延长等待时间
 
                     // 验证是否成功到达
                     String newArea = commonActions.ocrShibieDiqu();
@@ -605,7 +585,6 @@ public class Luxian {
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
                         "准备前往大唐国境...");
                 commonActions.openBag();
-                Thread.sleep(waittime);
                 // 步骤1: 查找并使用红色飞行棋（带重试）
                 for (int attempt = 1; attempt <= 3; attempt++) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
@@ -620,7 +599,6 @@ public class Luxian {
                         human.doubleclick(context.getDeviceId(),
                                 feixingqiPos[0], feixingqiPos[1], 5,5);
 
-                        Thread.sleep(waittime);
                         break;
                     }
 
@@ -640,7 +618,6 @@ public class Luxian {
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
                         "点击大唐国境传送点");
                 human.click(context.getDeviceId(), 363, 324, 5, 5);
-                Thread.sleep(waittime);
                 commonActions.closeBag();
 
 
@@ -654,7 +631,6 @@ public class Luxian {
 
 
                 human.click(context.getDeviceId(), pos[0], pos[1], 1, 1);
-                Thread.sleep(waittime);
 
                 // 检查是否出现"是的，我要去"选项
                 int[] ifpos = DeviceHttpClient.findMultiColor(
@@ -684,7 +660,6 @@ public class Luxian {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "找到确认选项，点击确认");
                     human.click(context.getDeviceId(), 627, 198, 30, 12);
-                    Thread.sleep(1300);
                 }
 
 
@@ -695,7 +670,6 @@ public class Luxian {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "关闭背包");
                     human.click(context.getDeviceId(), 614, 34, 10, 10);
-                    Thread.sleep(waittime);
 
                     // 验证是否成功关闭
                     if (detector.isBagOpen()) {
@@ -707,7 +681,6 @@ public class Luxian {
                 if (!detector.isTeleportButtonVisible()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "警告：传送界面未正常打开，等待");
-                    Thread.sleep(waittime);
 
                     // 二次验证
                     if (!detector.isTeleportButtonVisible()) {
@@ -725,7 +698,6 @@ public class Luxian {
                             "点击传送按钮（尝试 " + attempt + "/3）");
 
                     human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
-                    Thread.sleep(waittime * 2); // 延长等待时间
 
                     // 验证是否成功到达
                     String newArea = commonActions.ocrShibieDiqu();
@@ -773,7 +745,6 @@ public class Luxian {
                             "点击传送按钮（尝试 " + attempt + "/3）");
 
                     human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
-                    Thread.sleep(waittime * 3); // 延长等待时间
 
                     // 验证是否成功到达
                     String newArea = commonActions.ocrShibieDiqu();
@@ -808,7 +779,6 @@ public class Luxian {
                     return;
                 }
                 toScene("大唐国境","215,65");
-                Thread.sleep(waittime);
 
                 while (currentpos[0]!=215 || currentpos[1]!=65){
                     if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) return;
@@ -816,7 +786,6 @@ public class Luxian {
                     Thread.sleep(2000);
                     currentpos =commonActions.ocrZuobiao();
                 }
-                Thread.sleep(waittime);
                 human.click(context.getDeviceId(), 468, 262, 3, 6);
 
                 Thread.sleep(2500);
@@ -852,7 +821,6 @@ public class Luxian {
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
                         "准备前往江南野外...");
                 commonActions.openBag();
-                Thread.sleep(waittime);
                 // 步骤1: 查找并使用红色飞行棋（带重试）
                 for (int attempt = 1; attempt <= 3; attempt++) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
@@ -867,7 +835,6 @@ public class Luxian {
                         human.doubleclick(context.getDeviceId(),
                                 feixingqiPos[0], feixingqiPos[1], 5,5);
 
-                        Thread.sleep(waittime);
                         break;
                     }
 
@@ -888,13 +855,11 @@ public class Luxian {
                         "点击江南野外传送点");
 
                 human.click(context.getDeviceId(), 622, 364, 5, 5);
-                Thread.sleep(waittime);
                 // 步骤3: 关闭背包（带验证）
                 if (detector.isBagOpen()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "关闭背包");
                     human.click(context.getDeviceId(), 614, 34, 10, 10);
-                    Thread.sleep(waittime);
 
                     // 验证是否成功关闭
                     if (detector.isBagOpen()) {
@@ -906,7 +871,6 @@ public class Luxian {
                 if (!detector.isTeleportButtonVisible()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(),
                             "警告：传送界面未正常打开，等待");
-                    Thread.sleep(waittime);
 
                     // 二次验证
                     if (!detector.isTeleportButtonVisible()) {
@@ -924,7 +888,6 @@ public class Luxian {
                             "点击传送按钮（尝试 " + attempt + "/3）");
 
                     human.clickImg(context.getDeviceId(), "传送按钮", 8, 8);
-                    Thread.sleep(waittime * 2); // 延长等待时间
 
                     // 验证是否成功到达
                     String newArea = commonActions.ocrShibieDiqu();
@@ -960,14 +923,13 @@ public class Luxian {
             System.out.println("未知场景：" + changjing);
             return;
         }
-        handler.enterScene(); // 只进入场景，不处理坐标
+        handler.enterScene();
     }
 
     /**
      * 方法2：去场景并移动到坐标（如果场景支持）
      */
     public void toScene(String changjing, String mubiaozuobiao) throws Exception {
-        // 解析并暂存目标坐标
         try {
             if (mubiaozuobiao != null && !mubiaozuobiao.isEmpty()) {
                 String[] posStr = mubiaozuobiao.split(",");
@@ -981,58 +943,22 @@ public class Luxian {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "解析目标坐标失败：" + e.getMessage());
             targetPosition = null;
         }
-
-        // 执行场景进入逻辑
         SceneHandler handler = sceneHandlerMap.get(changjing);
         if (handler == null) {
             System.out.println("未知场景：" + changjing);
             return;
         }
         handler.enterScene();
-
-        // 移动到目标坐标
-        CommonActions commonActions = new CommonActions(context, taskThread);
-        commonActions.clickInputPos(mubiaozuobiao);
-        // 清空暂存坐标
-        targetPosition = null;
+        if (targetPosition != null) {
+            CommonActions commonActions = new CommonActions(context, taskThread);
+            commonActions.clickInputPos(mubiaozuobiao);
+            waitForPosition(targetPosition[0], targetPosition[1], 60);
+            targetPosition = null;
+        }
     }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     // ---------------------- 接口定义 ----------------------
-
-    /**
-     * 场景处理器接口：统一处理“进入场景”和“移动到坐标”
-     */
     private interface SceneHandler {
-        void enterScene() throws Exception; // 进入场景（必选）
+        void enterScene() throws Exception;
     }
 }

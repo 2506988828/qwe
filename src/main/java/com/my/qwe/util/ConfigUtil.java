@@ -46,16 +46,7 @@ public class ConfigUtil {
         return dir.getAbsolutePath();
     }
 
-    public static Map<String, Object> loadHumanLikeConfig() {
-        try {
-            File configFile = new File(CONFIG_PATH);
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(new FileInputStream(configFile), Map.class);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
+
 
     public static int[] parseIntArray(String csv) {
         if (csv == null || csv.isBlank()) return new int[0];

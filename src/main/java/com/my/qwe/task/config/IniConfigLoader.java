@@ -99,6 +99,29 @@ public class IniConfigLoader {
         }
     }
 
+    /**
+     * 重新加载配置文件（从磁盘读取最新内容）
+     */
+    public void reload() {
+        try {
+            File file = new File(configPath);
+            if (file.exists()) {
+                ini = new Wini(file);
+                ini.getConfig().setFileEncoding(StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("重新加载配置文件失败: " + configPath, e);
+        }
+    }
+
+    /**
+     * 获取指定区块的所有配置项（强制重新加载）
+     */
+    public Properties getSectionReload(String sectionName) {
+        reload(); // 先重新加载文件
+        return getSection(sectionName);
+    }
+
     // 静态方法同步修改为使用deviceName
     public static Map<String, String> loadTaskConfig(String deviceName, String taskName) {  // 参数改为deviceName
         Map<String, String> result = new HashMap<>();
