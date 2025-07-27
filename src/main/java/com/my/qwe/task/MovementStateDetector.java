@@ -56,7 +56,7 @@ public class MovementStateDetector {
         TaskStepNotifier.notifyStep(deviceId, "第一次坐标识别: (" + firstCoordinates[0] + "," + firstCoordinates[1] + ")");
 
         // 等待2秒
-        Thread.sleep(2000);
+        Thread.sleep(1000);
 
         // 第二次获取坐标
         int[] secondCoordinates = commonActions.ocrZuobiao();
@@ -98,22 +98,7 @@ public class MovementStateDetector {
             }
         } else {
             // 坐标不同，说明在移动
-            if (atDestination) {
-                TaskStepNotifier.notifyStep(deviceId, "角色在目的地附近移动");
-                return MovementState.STATIONARY;
-            } else {
-                // 检查移动方向是否正确（简单判断：是否更接近目的地）
-                double firstDistance = calculateDistance(firstCoords[0], firstCoords[1], destX, destY);
-                double secondDistance = calculateDistance(secondCoords[0], secondCoords[1], destX, destY);
-                
-                if (secondDistance < firstDistance) {
-                    TaskStepNotifier.notifyStep(deviceId, "角色正在前往目的地");
-                    return MovementState.MOVING_TO_DESTINATION;
-                } else {
-                    TaskStepNotifier.notifyStep(deviceId, "角色移动方向异常，需要重新激活");
-                    return MovementState.ABNORMAL_MOVEMENT;
-                }
-            }
+            return MovementState.MOVING_TO_DESTINATION;
         }
     }
 

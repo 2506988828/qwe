@@ -22,7 +22,7 @@ import java.util.List;
 public class MainUI extends JFrame {
     private JTable deviceTable;
     private DeviceTableModel tableModel;
-    private final List<String> taskTypes = List.of("取图", "接图", "挖图", "打图", "师门", "转图", "开图", "读图");
+    private final List<String> taskTypes = List.of("挖图","取图", "接图",  "打图", "师门", "转图", "开图", "读图");
 
     public MainUI() {
         setTitle("控制中心");
@@ -259,7 +259,7 @@ public class MainUI extends JFrame {
             this.threadStatuses = new ArrayList<>();
 
             for (int i = 0; i < devices.size(); i++) {
-                selectedTasks.add("取图"); // 默认选择
+                selectedTasks.add("挖图"); // 默认选择
                 currentTasks.add("-");
                 currentSteps.add("-");
                 threadStatuses.add("未启动");

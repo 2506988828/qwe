@@ -38,8 +38,8 @@ public class GameStateDetector  {
     private static final int PET_HP_BAR_X2 = 400; // 召唤兽血条右边界
     private static final int PET_HP_BAR_Y2 = 500;
 
-    private static final double HP_LOW_THRESHOLD = 0.3; // 血量低于30%视为低血量
-    private static final double MP_LOW_THRESHOLD = 0.2; // 魔法值低于20%视为低魔法值
+    private static final double HP_LOW_THRESHOLD = 0.8; // 血量低于30%视为低血量
+    private static final double MP_LOW_THRESHOLD = 0.8; // 魔法值低于20%视为低魔法值
 
     public GameStateDetector(TaskContext context, DeviceHttpClient httpClient) {
         this.context = context;
@@ -84,9 +84,9 @@ public class GameStateDetector  {
      * 检测是否处于战斗中
      */
     public boolean isInBattle() throws IOException {
-        int[] battlePos = httpClient.findMultiColor(
-                context.getDeviceId(), 50, 60, 70, 80,
-                BATTLE_COLOR, BATTLE_COLOR_OFFSETS, 0.8, 0);
+        int[]rect = {15,185,45,205};
+        int[] battlePos = httpClient.findImage(
+                context.getDeviceId(), rect, "战斗界面",0.8);
 
         return battlePos[0] > 0;
     }

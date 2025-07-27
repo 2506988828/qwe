@@ -1,5 +1,6 @@
 package com.my.qwe.task;
 
+import com.my.qwe.controller.HumanLikeController;
 import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.task.config.IniConfigLoader;
 
@@ -189,6 +190,8 @@ public class WatuTask implements ITask {
             bagMapInfo = loadFirstBagTreasureMap();
             while (bagMapInfo != null) {
                 if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                //吃香    useXiangyaoxiang
+
 
                 gezishu =  bagMapInfo.getBagSlot();
                 scence= bagMapInfo.getScene();
@@ -196,27 +199,10 @@ public class WatuTask implements ITask {
                 y = bagMapInfo.getY();
                 pos  = x+","+y;
                 luxian.toScene(scence,pos);
-                
-                // 使用新的移动状态检测功能
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "开始前往目的地: (" + x + "," + y + ")");
-                
-                // 等待角色到达目的地，使用移动状态检测
-                boolean reachedDestination = movementDetector.waitForDestination(x, y, 60); // 60秒超时
-                
-                if (!reachedDestination) {
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "等待到达目的地超时，尝试处理移动异常");
-                    boolean handled = movementDetector.handleAbnormalMovement(x, y, 3); // 最多重试3次
-                    
-                    if (!handled) {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(), "处理移动异常失败，跳过当前宝图");
-                        continue;
-                    }
-                }
-                
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "已到达目的地: (" + x + "," + y + ")");
+
                 commonActions.openBag();
                 Thread.sleep(new Random().nextInt(200) + 300);
-                commonActions.doubleclickBagGrid(context.getDeviceId(),gezishu-1);
+                commonActions.doubleclickBagGrid(context.getDeviceId(),gezishu-1);//使用藏宝图
                 watuProps = configLoader.getSection(SECTION_WATU);
                 Thread.sleep(new Random().nextInt(200) + 300);
 
@@ -231,8 +217,18 @@ public class WatuTask implements ITask {
 
                 while (gameStateDetector.isInBattle()){//判断是否进入战斗
                     TaskStepNotifier.notifyStep(context.getDeviceId(),"正在战斗中...");
+                    int[] poszhandou = DeviceHttpClient.findImages(context.getDeviceId(),"自动战斗","自动战斗","取消自动","自动战斗",0.8);
+
+                    if (poszhandou[0]>0) {
+                        HumanLikeController humanLikeController = new HumanLikeController(thread);
+                        humanLikeController.click(context.getDeviceId(), poszhandou[0], poszhandou[1], 5, 5);
+                    }
                     Thread.sleep(new Random().nextInt(200) + 300);
 
+                }
+
+                if (gameStateDetector.isPlayerHpLow()){
+                    commonActions.huifuHP();
                 }
 
 
@@ -240,6 +236,8 @@ public class WatuTask implements ITask {
 
                 bagMapInfo = loadFirstBagTreasureMap();
                     yiwashu = 1+Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
+                    configLoader.setProperty(SECTION_WATU, "已挖图数", String.valueOf(yiwashu));
+                    configLoader.save();
                     Thread.sleep(new Random().nextInt(200) + 300);
                 // 强制重新加载配置文件，确保获取最新数据
                 watuProps = configLoader.getSectionReload(SECTION_WATU);

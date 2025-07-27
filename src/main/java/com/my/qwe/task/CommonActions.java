@@ -85,12 +85,34 @@ public class CommonActions {
         }
     }
 
+    /**
+     *恢复任务气血
+     * */
+    public void huifuHP() throws IOException, InterruptedException {
+        HumanLikeController human = new HumanLikeController(taskThread);
+        human.click(context.getDeviceId(),715,15,9,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        int[]posHP =DeviceHttpClient.findImage(context.getDeviceId(),"补充气血",0.8);
+        human.click(context.getDeviceId(),posHP[0], posHP[1],15,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        human.click(context.getDeviceId(),715,15,9,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        int[]posMP =DeviceHttpClient.findImage(context.getDeviceId(),"补充魔法",0.8);
+        human.click(context.getDeviceId(),posMP[0], posMP[1],15,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+    }
 
 
     /**
-     * 识别当前所在的坐标（支持无括号格式，如192,133）
-     * 多次识别，当本次x坐标比上次减1且两次y坐标一致时返回结果
-     */
+     * 使用摄药香
+     * */
+    public void useXiangyaoxiang(){
+
+    }
+
+
+
+
     /**
      * 识别当前所在的坐标（支持无括号格式，如192,133）
      * 每次识别将区域x坐标减1，连续两次识别结果相同时返回
@@ -98,17 +120,17 @@ public class CommonActions {
     public int[] ocrZuobiao() {
         // 初始识别区域 [x, y, width, height]，后续每次x减1
         int baseX = 52;
-        int baseY = 31;
+        int baseY = 37;
         int width = 124;
         int height = 50;
 
         int[] previousResult = null; // 缓存上一次识别的有效结果
         int currentX = baseX; // 当前识别区域的x坐标
         int retryCount = 0; // 识别计数器
-        final int MAX_RETRY = 20; // 最大识别次数，防止无限循环
+        final int MAX_RETRY = 8; // 最大识别次数，防止无限循环
 
         try {
-            TaskStepNotifier.notifyStep(context.getDeviceId(), "开始多次识别坐标（每次区域x减1）");
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "开始多次识别坐标");
 
             String diqu = "";
             while (retryCount < MAX_RETRY) {
@@ -122,14 +144,15 @@ public class CommonActions {
 
                 // 当前识别区域（x坐标随次数递减）
                 int[] diququyu = {currentX, baseY, width, height};
-                TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "第" + retryCount + "次识别，区域：[" + currentX + "," + baseY + "," + width + "," + height + "]");
+                /*TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "第" + retryCount + "次识别，区域：[" + currentX + "," + baseY + "," + width + "," + height + "]");*/
 
                 // 调用OCR接口获取坐标文本
                 diqu = DeviceHttpClient.ocr(context.getDeviceId(), diququyu);
                 if (diqu == null || diqu.trim().isEmpty()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次识别为空，重试...");
-                    currentX--; // 即使识别为空，也调整区域x坐标
+                    currentX=currentX-2; // 即使识别为空，也调整区域x坐标
+                    baseY--;
                     Thread.sleep(500);
                     continue;
                 }
@@ -162,15 +185,15 @@ public class CommonActions {
                 // 转换为整数坐标
                 int x = Integer.parseInt(xStr);
                 int y = Integer.parseInt(yStr);
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次识别结果：(" + x + "," + y + ")");
+                //TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次识别结果：(" + x + "," + y + ")");
 
                 // 验证条件：本次结果与上次结果完全相同
                 if (previousResult != null) {
                     if (x == previousResult[0] && y == previousResult[1]) {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(), "连续两次识别结果一致，返回：(" + x + "," + y + ")");
+                        //TaskStepNotifier.notifyStep(context.getDeviceId(), "连续两次识别结果一致，返回：(" + x + "," + y + ")");
                         return new int[]{x, y};
                     } else {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(), "与上次结果不一致（上次：" + previousResult[0] + "," + previousResult[1] + "），继续识别...");
+                        //TaskStepNotifier.notifyStep(context.getDeviceId(), "与上次结果不一致（上次：" + previousResult[0] + "," + previousResult[1] + "），继续识别...");
                     }
                 }
 
@@ -182,10 +205,10 @@ public class CommonActions {
 
             // 达到最大重试次数仍未满足条件，返回最后一次有效结果或无效值
             if (previousResult != null) {
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "达到最大识别次数，返回最后一次结果：(" + previousResult[0] + "," + previousResult[1] + ")");
+               // TaskStepNotifier.notifyStep(context.getDeviceId(), "达到最大识别次数，返回最后一次结果：(" + previousResult[0] + "," + previousResult[1] + ")");
                 return previousResult;
             } else {
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "多次识别失败，返回无效坐标");
+                //TaskStepNotifier.notifyStep(context.getDeviceId(), "多次识别失败，返回无效坐标");
                 return new int[]{-1, -1};
             }
 
@@ -1047,7 +1070,7 @@ public class CommonActions {
 
                 Thread.sleep(100);
                 human.click(context.getDeviceId(), targetX, targetY, 5, 5);  // 增加点击范围容错
-                TaskStepNotifier.notifyStep(context.getDeviceId(), "输入字符：" + ch + "（坐标：" + targetX + "," + targetY + "）");
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "输入字符：" + ch );
                 Thread.sleep(new java.util.Random().nextInt(20) + 20);
             }
 
