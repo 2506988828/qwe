@@ -255,15 +255,55 @@ public class WatuTask implements ITask {
     private void dealBagwuzi(int shutieLevel,TaskThread thread) {
         GameStateDetector detector = new GameStateDetector(context,new DeviceHttpClient());
         CommonActions commonActions = new CommonActions(context,thread);
+        HumanLikeController humanLikeController = new HumanLikeController(thread);
         try {
             if (!detector.isBagOpen()){
                 commonActions.openBag();
             }
             List<Integer>gezi= commonActions.findBagItemIndex(context.getDeviceId(),"书",0.8);
+            if (gezi == null ||gezi.isEmpty()){
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "没有书");
+            }
+            for (int index : gezi) {
+                if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "线程已停止或暂停，终止点击");
+                    break;
+                }
+                commonActions.clickBagGrid(context.getDeviceId(),index);
+                TaskThread.sleep(new Random().nextInt(400) + 300);
+                int [] rect = {1,2,3,4};
+                String ocrshutieLevel = DeviceHttpClient.ocr(context.getDeviceId(),rect);
+                if (Integer.parseInt(ocrshutieLevel) <= shutieLevel) {
+                    //执行丢弃
+                    int[] posdiuqi =DeviceHttpClient.findImage(context.getDeviceId(),"丢弃",0.8);
+                    humanLikeController.click(context.getDeviceId(), posdiuqi[0], posdiuqi[1], 5, 5);
+                    TaskThread.sleep(new Random().nextInt(400) + 300);
+                }
+
+            }
+            List<Integer>gezitie= commonActions.findBagItemIndex(context.getDeviceId(),"铁",0.8);
+            if (gezitie == null ||gezi.isEmpty()){
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "没有铁");
+            }
+            for (int index:gezitie) {
+                if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "线程已停止或暂停，终止点击");
+                    break;
+                }
+                commonActions.clickBagGrid(context.getDeviceId(),index);
+                TaskThread.sleep(new Random().nextInt(400) + 300);
+                int [] rect = {1,2,3,4};
+                String ocrshutieLevel = DeviceHttpClient.ocr(context.getDeviceId(),rect);
+                if (Integer.parseInt(ocrshutieLevel) <= shutieLevel) {
+                    //执行丢弃
+                }
+
+            }
 
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 

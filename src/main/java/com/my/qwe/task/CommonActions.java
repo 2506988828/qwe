@@ -811,6 +811,23 @@ public class CommonActions {
         }
     }
 
+    //单击仓库的第gridIndex个格子
+    public void clickBagGrid(String deviceId, int gridIndex) {
+        List<int[]> grids = BagGridUtil.generateBagGrids();
+        if (gridIndex < 0 || gridIndex >= grids.size()) return;
+
+        int[] rect = grids.get(gridIndex);
+        int centerX = (rect[0] + rect[2]) / 2;
+        int centerY = (rect[1] + rect[3]) / 2;
+
+        HumanLikeController human = new HumanLikeController(taskThread);
+        try {
+            human.click(deviceId, centerX, centerY, 10, 10); // 偏移点击
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     //双击背包的第gridIndex个格子
     public void doubleclickBagGrid(String deviceId, int gridIndex) {
         List<int[]> grids = BagGridUtil.generateBagGrids();
