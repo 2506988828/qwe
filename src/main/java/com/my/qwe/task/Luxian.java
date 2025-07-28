@@ -565,10 +565,6 @@ public class Luxian {
 
                 // 检测当前状态
                 String currentArea = commonActions.ocrShibieDiqu();
-                double currentHp = detector.getPlayerHpPercent();
-
-                TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "当前地区: " + currentArea + ", 血量: " + String.format("%.0f%%", currentHp * 100));
 
                 // 如果已经在大唐国境，直接退出
                 if (currentArea.contains("大唐国境")) {
@@ -799,10 +795,6 @@ public class Luxian {
 
                 // 检测当前状态
                 String currentArea = commonActions.ocrShibieDiqu();
-                double currentHp = detector.getPlayerHpPercent();
-
-                TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "当前地区: " + currentArea + ", 血量: " + String.format("%.0f%%", currentHp * 100));
 
                 // 如果已经在大唐国境，直接退出
                 if (currentArea.contains("江南野外")) {

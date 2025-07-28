@@ -3,6 +3,7 @@ package com.my.qwe.task;
 import com.my.qwe.controller.HumanLikeController;
 import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.task.TaskContext;
+import com.my.qwe.task.config.IniConfigLoader;
 import com.my.qwe.util.BagGridUtil;
 import org.bytedeco.opencv.opencv_core.Device;
 
@@ -95,19 +96,43 @@ public class CommonActions {
         int[]posHP =DeviceHttpClient.findImage(context.getDeviceId(),"补充气血",0.8);
         human.click(context.getDeviceId(),posHP[0], posHP[1],15,9);
         Thread.sleep(new java.util.Random().nextInt(201) + 700);
-        human.click(context.getDeviceId(),715,15,9,9);
+
+
+        /*human.click(context.getDeviceId(),715,15,9,9);
         Thread.sleep(new java.util.Random().nextInt(201) + 700);
         int[]posMP =DeviceHttpClient.findImage(context.getDeviceId(),"补充魔法",0.8);
         human.click(context.getDeviceId(),posMP[0], posMP[1],15,9);
-        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);*/
     }
 
 
+
     /**
-     * 使用摄药香
+     * 使用摄妖香
      * */
     public void useXiangyaoxiang(){
+        GameStateDetector detector = new GameStateDetector(context,new DeviceHttpClient());
+        HumanLikeController human = new HumanLikeController(taskThread);
+        IniConfigLoader configLoader= new IniConfigLoader(context.getDeviceName());;
 
+        Properties quanjuProps = configLoader.getSection("全局变量");
+        long xiangdaoqi = Long.parseLong(quanjuProps.getProperty("摄妖香"));
+        if (xiangdaoqi< System.currentTimeMillis() ) {
+            try {
+                if (!detector.isBagOpen()){
+                    openBag();
+                }
+                int[]posxiang = DeviceHttpClient.findImage(context.getDeviceId(),"摄妖香",0.8);
+                human.click(context.getDeviceId(),posxiang[0], posxiang[1],10,9);
+                configLoader.setProperty("全局变量","摄妖香", String.valueOf(System.currentTimeMillis()+25*60*1000));
+                configLoader.save();
+                Thread.sleep(new Random().nextInt(200) + 500);
+                closeBag();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
 
@@ -468,6 +493,34 @@ public class CommonActions {
         }
         return -1;
     }
+
+    /**
+     * 遍历背包界面的背包格子查找这个图片的物品所在格子数
+     * @param deviceId 设备ID
+     * @param imagePath 图片路径（目标道具）
+     * @param similarity 相似度阈值
+     * @return 找到的坐标或 null
+     */
+        //遍历给予界面的背包格子，寻找符合图片的格子
+        public List<Integer> findBagItemIndex(String deviceId, String imagePath, double similarity) {
+            List<Integer> matchedIndices = new ArrayList<>();
+            List<int[]> grids = BagGridUtil.generateBagGrids();
+
+            for (int i = 0; i < grids.size(); i++) {
+                int[] rect = grids.get(i);
+                try {
+                    int[] pos = DeviceHttpClient.findImage(deviceId, rect, imagePath, similarity);
+                    if (pos != null && pos[0] > 0 && pos[1] > 0) {
+                        matchedIndices.add(i); // 找到则加入编号列表
+                    }
+                } catch (IOException ignored) {
+                    // 忽略查找失败
+                }
+            }
+
+
+            return matchedIndices;
+        }
 
 
     //遍历给予界面的背包格子，寻找符合图片的格子

@@ -4,6 +4,7 @@ import com.my.qwe.controller.HumanLikeController;
 import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.task.config.IniConfigLoader;
 
+import java.io.IOException;
 import java.util.*;
 
 public class WatuTask implements ITask {
@@ -172,6 +173,7 @@ public class WatuTask implements ITask {
         watuProps = configLoader.getSection(SECTION_WATU);
         int baotuzongshu = Integer.parseInt(watuProps.getProperty(KEY_TOTALSHU)==null? String.valueOf(0) :watuProps.getProperty(KEY_TOTALSHU));
         int yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU)==null? String.valueOf(0) :watuProps.getProperty(KEY_YIWASHU));
+        int shutieLevel = Integer.parseInt(watuProps.getProperty("书铁等级"));
         if (baotuzongshu == 0 && yiwashu == 0) {}
 
 
@@ -179,6 +181,12 @@ public class WatuTask implements ITask {
                 && (!thread.isStopped() && !Thread.currentThread().isInterrupted()) ) {
             if (thread.isStopped() || Thread.currentThread().isInterrupted()) break;
             thread.checkPause();
+            //判断摄妖香到期时间，并使用
+            commonActions.useXiangyaoxiang();
+
+            //处理背包物资
+            dealBagwuzi(shutieLevel,thread);
+
 
             bagMapInfo = loadFirstBagTreasureMap();
             if (bagMapInfo==null) {
@@ -190,8 +198,6 @@ public class WatuTask implements ITask {
             bagMapInfo = loadFirstBagTreasureMap();
             while (bagMapInfo != null) {
                 if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
-                //吃香    useXiangyaoxiang
-
 
                 gezishu =  bagMapInfo.getBagSlot();
                 scence= bagMapInfo.getScene();
@@ -240,8 +246,24 @@ public class WatuTask implements ITask {
                     configLoader.save();
                     Thread.sleep(new Random().nextInt(200) + 300);
                 // 强制重新加载配置文件，确保获取最新数据
-                watuProps = configLoader.getSectionReload(SECTION_WATU);
+                    watuProps = configLoader.getSectionReload(SECTION_WATU);
             }
+
+        }
+    }
+
+    private void dealBagwuzi(int shutieLevel,TaskThread thread) {
+        GameStateDetector detector = new GameStateDetector(context,new DeviceHttpClient());
+        CommonActions commonActions = new CommonActions(context,thread);
+        try {
+            if (!detector.isBagOpen()){
+                commonActions.openBag();
+            }
+            List<Integer>gezi= commonActions.findBagItemIndex(context.getDeviceId(),"书",0.8);
+
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

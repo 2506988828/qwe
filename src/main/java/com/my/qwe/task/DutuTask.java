@@ -22,10 +22,109 @@ public class DutuTask implements ITask {
             if (common.ifOpenCangku()){
                 common.closeWarehouse();
             }
+
+            cangbaotupaixu(context,thread);
+
+
             TaskStepNotifier.notifyStep(context.getDeviceId(), "===== 读图任务完成 =====");
         } catch (Exception e) {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "任务异常终止：" + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * 重新排序配置文件中的藏宝图
+     * */
+    /**
+     * 重新排序配置文件中的藏宝图
+     * 按xy坐标分为4个区域（两行两列），按1234顺序重新排序
+     */
+     public void cangbaotupaixu(TaskContext context,TaskThread thread) {
+        if (thread.isStopped()) return;
+        TaskStepNotifier.notifyStep(null, "开始对藏宝图进行分区排序");
+
+        try {
+            // 获取设备名称（从线程上下文或配置中获取，这里假设你的TaskThread有getDeviceName方法）
+            String deviceName = context.getDeviceName(); // 根据实际情况调整获取方式
+
+            // 加载现有配置
+            Map<String, Object> existingData = loadExistingDigMapConfig(deviceName);
+            Map<String, String> baseInfo = (Map<String, String>) existingData.get("baseInfo");
+            Map<String, List<TreasureInfo>> warehouseMap = (Map<String, List<TreasureInfo>>) existingData.get("warehouse");
+
+            // 对每个区域的宝图进行排序
+            for (Map.Entry<String, List<TreasureInfo>> entry : warehouseMap.entrySet()) {
+                String area = entry.getKey();
+                List<TreasureInfo> treasures = entry.getValue();
+
+                if (treasures.size() <= 1) {
+                    // 单个宝图无需排序
+                    continue;
+                }
+
+                // 计算当前区域所有宝图的x、y坐标极值
+                int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+                int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+
+                for (TreasureInfo treasure : treasures) {
+                    minX = Math.min(minX, treasure.getX());
+                    maxX = Math.max(maxX, treasure.getX());
+                    minY = Math.min(minY, treasure.getY());
+                    maxY = Math.max(maxY, treasure.getY());
+                }
+
+                // 计算中间值（分区边界）
+                int midX = (minX + maxX) / 2;
+                int midY = (minY + maxY) / 2;
+
+                TaskStepNotifier.notifyStep(null,
+                        area + " 坐标范围：X[" + minX + "-" + maxX + "], Y[" + minY + "-" + maxY +
+                                "]，中间值：(" + midX + "," + midY + ")");
+
+                // 按区域编号排序（1-4）
+                Collections.sort(treasures, (t1, t2) -> {
+                    int region1 = getRegion(t1.getX(), t1.getY(), midX, midY);
+                    int region2 = getRegion(t2.getX(), t2.getY(), midX, midY);
+
+                    // 先按区域编号排序
+                    if (region1 != region2) {
+                        return Integer.compare(region1, region2);
+                    }
+
+                    // 同一区域内按x坐标排序，x相同则按y坐标
+                    if (t1.getX() != t2.getX()) {
+                        return Integer.compare(t1.getX(), t2.getX());
+                    }
+                    return Integer.compare(t1.getY(), t2.getY());
+                });
+
+                TaskStepNotifier.notifyStep(null,
+                        area + " 宝图排序完成，共" + treasures.size() + "个，分为4个区域");
+            }
+
+            // 保存排序后的配置
+            saveDigMapConfig(deviceName, baseInfo, warehouseMap);
+            TaskStepNotifier.notifyStep(null, "藏宝图排序完成并已保存配置");
+
+        } catch (Exception e) {
+            TaskStepNotifier.notifyStep(null, "藏宝图排序失败：" + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 确定坐标所在的区域（1-4）
+     * 1: 左上区域（x <= midX 且 y <= midY）
+     * 2: 右上区域（x > midX 且 y <= midY）
+     * 3: 左下区域（x <= midX 且 y > midY）
+     * 4: 右下区域（x > midX 且 y > midY）
+     */
+    private int getRegion(int x, int y, int midX, int midY) {
+        if (x <= midX) {
+            return y <= midY ? 1 : 3;
+        } else {
+            return y <= midY ? 2 : 4;
         }
     }
 

@@ -101,6 +101,37 @@ public class GameStateDetector  {
 
         return hpPercent < HP_LOW_THRESHOLD;
     }
+    /**
+     * 检测人物蓝量是否低于阈值（基于血条长度）
+     */
+    public boolean isPlayerMpLow() throws IOException {
+        double hpPercent = getPlayerMpPercent();
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "人物蓝量: " + String.format("%.1f%%", hpPercent * 100));
+
+        return hpPercent < HP_LOW_THRESHOLD;
+    }
+
+    /**
+     * 检测宠物血量是否低于阈值（基于血条长度）
+     */
+    public boolean isPetHpLow() throws IOException {
+        double hpPercent = getPetHpPercent();
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "宠物血量: " + String.format("%.1f%%", hpPercent * 100));
+
+        return hpPercent < HP_LOW_THRESHOLD;
+    }
+    /**
+     * 检测宠物蓝量是否低于阈值（基于血条长度）
+     */
+    public boolean isPetMpLow() throws IOException {
+        double hpPercent = getPetMpPercent();
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "宠物蓝量: " + String.format("%.1f%%", hpPercent * 100));
+
+        return hpPercent < HP_LOW_THRESHOLD;
+    }
 
 
     /**
@@ -142,7 +173,122 @@ public class GameStateDetector  {
         return percent / 100.0;  // 转换为0-1比例
     }
 
+    /**
+     * 检测人物血量百分比（基于指定的多点找色方法）
+     * 起始坐标：694,3-698,7，每向右4像素代表10%血量
+     */
+    public double getPlayerMpPercent() throws IOException {
+        int startX = 694;
+        int y1 = 3;//需要改
+        int y2 = 7;//需要改
+        int xStep = 4;        // 每次x增加4像素
+        double percentPerStep = 10.0;  // 每4像素代表10%血量
+        int maxSteps = 10;    // 最多检测10次（覆盖100%血量）
 
+        String colorPattern = "a84f4f";  // 蓝条颜色特征，需要改
+        double similarity = 0.7;         // 相似度阈值
+        int detectedSteps = 0;
+        // 循环检测每个区域
+        for (int i = 0; i < maxSteps; i++) {
+            int currentX1 = startX + (i * xStep);
+            int currentX2 = currentX1 + 4;  // 保持宽度为4像素
+
+            int[] result = httpClient.findMultiColor(
+                    context.getDeviceId(),
+                    currentX1, y1, currentX2, y2,
+                    colorPattern, "", similarity, 0
+            );
+
+            if (result[0] > 0) {
+                detectedSteps++;  // 找到匹配区域，计数+1
+            } else {
+                break;  // 未找到匹配，认为血量已结束
+            }
+        }
+        double percent = detectedSteps * percentPerStep;
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "检测到人物血量: " + String.format("%.0f%%", percent));
+
+        return percent / 100.0;  // 转换为0-1比例
+    }
+
+    /**
+     * 检测人物血量百分比（基于指定的多点找色方法）
+     * 起始坐标：694,3-698,7，每向右4像素代表10%血量
+     */
+    public double getPetHpPercent() throws IOException {
+        int startX = 694;//需要改
+        int y1 = 3;
+        int y2 = 7;
+        int xStep = 4;        // 每次x增加4像素
+        double percentPerStep = 10.0;  // 每4像素代表10%血量
+        int maxSteps = 10;    // 最多检测10次（覆盖100%血量）
+
+        String colorPattern = "a84f4f";  // 血条颜色特征
+        double similarity = 0.7;         // 相似度阈值
+        int detectedSteps = 0;
+        // 循环检测每个区域
+        for (int i = 0; i < maxSteps; i++) {
+            int currentX1 = startX + (i * xStep);
+            int currentX2 = currentX1 + 4;  // 保持宽度为4像素
+
+            int[] result = httpClient.findMultiColor(
+                    context.getDeviceId(),
+                    currentX1, y1, currentX2, y2,
+                    colorPattern, "", similarity, 0
+            );
+
+            if (result[0] > 0) {
+                detectedSteps++;  // 找到匹配区域，计数+1
+            } else {
+                break;  // 未找到匹配，认为血量已结束
+            }
+        }
+        double percent = detectedSteps * percentPerStep;
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "检测到人物血量: " + String.format("%.0f%%", percent));
+
+        return percent / 100.0;  // 转换为0-1比例
+    }
+
+    /**
+     * 检测人物血量百分比（基于指定的多点找色方法）
+     * 起始坐标：694,3-698,7，每向右4像素代表10%血量
+     */
+    public double getPetMpPercent() throws IOException {
+        int startX = 694;//需要改
+        int y1 = 3;//需要改
+        int y2 = 7;//需要改
+        int xStep = 4;        // 每次x增加4像素
+        double percentPerStep = 10.0;  // 每4像素代表10%血量
+        int maxSteps = 10;    // 最多检测10次（覆盖100%血量）
+
+        String colorPattern = "a84f4f";  // 蓝条颜色特征，需要改
+        double similarity = 0.7;         // 相似度阈值
+        int detectedSteps = 0;
+        // 循环检测每个区域
+        for (int i = 0; i < maxSteps; i++) {
+            int currentX1 = startX + (i * xStep);
+            int currentX2 = currentX1 + 4;  // 保持宽度为4像素
+
+            int[] result = httpClient.findMultiColor(
+                    context.getDeviceId(),
+                    currentX1, y1, currentX2, y2,
+                    colorPattern, "", similarity, 0
+            );
+
+            if (result[0] > 0) {
+                detectedSteps++;  // 找到匹配区域，计数+1
+            } else {
+                break;  // 未找到匹配，认为血量已结束
+            }
+        }
+        double percent = detectedSteps * percentPerStep;
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "检测到人物血量: " + String.format("%.0f%%", percent));
+
+        return percent / 100.0;  // 转换为0-1比例
+    }
 
 
 
