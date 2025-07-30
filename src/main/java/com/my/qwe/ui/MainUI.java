@@ -22,7 +22,7 @@ import java.util.List;
 public class MainUI extends JFrame {
     private JTable deviceTable;
     private DeviceTableModel tableModel;
-    private final List<String> taskTypes = List.of("挖图","取图", "接图",  "打图", "师门", "转图", "开图", "读图");
+    private final List<String> taskTypes = List.of("挖图","测试任务","取图", "接图",  "打图", "师门", "转图", "开图", "读图");
 
     public MainUI() {
         setTitle("控制中心");
@@ -222,6 +222,7 @@ public class MainUI extends JFrame {
         switch (taskName) {
             case "取图": return new QutuTask();
             case "挖图": return new WatuTask();
+            case "测试任务": return new CeshiTask();
             case "打图": return new DatuTask();
             case "师门": return new ShimenTask();
             case "转图": return new ZhuantuTask();

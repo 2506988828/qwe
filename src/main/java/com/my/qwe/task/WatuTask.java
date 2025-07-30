@@ -285,6 +285,19 @@ public class WatuTask implements ITask {
                    String imgbase64=commonActions.cropImage(screenshotbase64,1,1,1,1);
                     commonActions.piaofuzi(imgbase64);
                 }
+                if (gameStateDetector.isChuxianchengyu()){
+                    //截图，裁剪，
+                    String screenshotbase64= DeviceHttpClient.getScreenshotBase64(context.getDeviceId());
+                    String imgbase64=commonActions.cropImage(screenshotbase64,200,30,385,267);
+                    commonActions.piaofuzi(imgbase64);
+                }
+
+                if (gameStateDetector.isChuxiansixiaoren()){
+                    //截图，裁剪，
+                    String screenshotbase64= DeviceHttpClient.getScreenshotBase64(context.getDeviceId());
+                    String imgbase64=commonActions.cropImage(screenshotbase64,203,56,110,21);
+                    commonActions.piaofuzi(imgbase64);
+                }
 
                 // 战斗循环 - 增强停止检查
                 while (gameStateDetector.isInBattle()) {
@@ -325,6 +338,10 @@ public class WatuTask implements ITask {
                 // 强制重新加载配置文件，确保获取最新数据
                 watuProps = configLoader.getSectionReload(SECTION_WATU);
             }
+
+
+            //存物资
+            commonActions.transferBagItemsToWarehouse();
         }
 
         TaskStepNotifier.notifyStep(context.getDeviceId(), "挖图任务完成");
@@ -408,9 +425,7 @@ public class WatuTask implements ITask {
             }
             if (detector.isBagOpen()){commonActions.closeBag();}
 
-            commonActions.openJianyeCangku();
-            //打开仓库以后存物资
-            commonActions.transferBagItemsToWarehouse();
+
 
         } catch (Exception e) {
             TaskStepNotifier.notifyStep(context.getDeviceId(), "处理背包物资异常: " + e.getMessage());

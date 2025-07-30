@@ -10,6 +10,7 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -729,8 +730,7 @@ public class CommonActions {
                 int[] pos = DeviceHttpClient.findMultiColor(
                         deviceId,
                         rect[0], rect[1], rect[2], rect[3],
-                        "b1a6dd", // 空格子的特征色
-                        "27|19|c6b6e9,28|3|c6b6e9,19|26|c6b6e9,13|12|c6b6e9,6|16|c6b6e9,11|31|c6b6e9,1|1|c5b6ea,7|10|c6b6e9,32|16|c6b6e9,27|21|c6b6e9,32|14|c6b6e9,22|2|c6b6e9,24|31|c6b6e9,25|29|c6b6e9,32|20|c6b6e9,2|12|c5b6ea,4|10|c6b6e9,13|8|c6b6e9,16|17|c6b6e9,4|13|c6b6e9,1|4|c5b7ec,15|20|c6b6e9,6|24|c6b6e9,21|10|c6b6e9,13|29|c6b6e9,31|21|c6b6e9,19|30|c6b6e9,24|0|b6a8de,9|7|c6b5eb,12|14|c6b6e9,14|21|c6b6e9,7|20|c6b6e9,6|22|c6b6e9", // 空格子的多点校验（复用原参数）
+                        "bbacdc","23|12|baacd9,20|7|baacd9,33|19|baacd9,6|10|bbacd8,29|19|baacd9,16|13|baacd9,21|15|baacd9,32|21|baacd9,2|14|baacd9,16|10|baacd9,29|9|baacd9,8|1|baacd9,29|16|baacd9,29|0|baacd7,2|17|baacd9,20|11|baacd9,30|11|baacd9,26|4|baacd9,16|2|baacd9,9|9|baacd9,37|6|baabda,14|9|baacd9,18|9|baacd9,2|12|bcabd7,21|22|baadd9,17|13|baacd9,13|10|baacd9,0|15|baacd9,32|8|baacd9,9|18|baacd9,4|17|baacd9,8|18|baacd9,2|0|b9adda,28|17|baacd9,25|17|baacd9,9|10|baacd9,29|5|baacd9,29|3|baacd7,4|11|bbacd7,25|10|baacd9,33|11|baacd9,20|15|baacd9,35|14|baacd9,0|11|baacd8,25|16|baacd9,27|6|baacd9,18|10|baacd9,24|11|baacd9,7|5|baabdb,26|1|baacd7,0|9|baacd9,15|21|baacd9,26|7|baacd9,10|11|baacd9,24|7|baacd9,11|19|baacd9,6|3|b9add9,3|0|b8add9,8|22|baadd9,37|2|baacd9,37|10|baabda,21|11|baacd9,27|13|baacd9,0|13|baacd6,2|2|b9acda,18|21|baacd9,17|10|baacd9,33|8|baacd9,14|13|baacd9,9|15|baacd9,31|2|baacd7,23|16|baacd9,14|18|baacd9,14|15|baacd9,30|21|baacd9,33|9|baacd9,26|21|baacd9,7|9|baacd9,37|22|baacda,25|0|baacd8,17|19|baacd9,5|15|baacd9,31|17|baacd9,4|20|baacd9,21|19|baacd9,11|14|baacd9,20|19|baacd9,16|6|baacd9,14|12|baacd9,25|4|baacd9,31|3|baacd7,22|15|baacd9,9|21|baacd9,19|12|baacd9,27|10|baacd9,9|19|baacd9,7|20|baacd9,36|17|baacd9,3|5|b9acdb,13|13|baacd9,21|18|baacd9,1|19|baacd9,27|2|baacd7,20|8|baacd9,27|9|baacd9,2|15|baacd9,26|22|baadd9,28|19|baacd9,4|7|b9acdb,36|10|baacd9,11|15|baacd9,16|8|baacd9,37|7|baabda,5|1|b9add9,17|4|baacd9,31|8|baacd9,34|16|baacd9,21|8|baacd9,25|12|baacd9,31|10|baacd9,14|3|baacd9,35|7|baacd9,7|22|baadd9,14|14|baacd9,34|2|baacd8,12|11|baacd9,9|2|baacd9,23|3|baacd9,17|16|baacd9,24|4|baacd9,27|17|baacd9,3|13|baacd9,4|3|b9add9,10|15|baacd9,27|4|baacd9,34|3|baacd8,15|9|baacd9,7|4|baabdb,21|7|baacd9,23|20|baacd9,15|15|baacd9,35|0|baacd9,25|13|baacd9,31|7|baacd9,18|17|baacd9,1|13|baacd7,20|12|baacd9,37|21|baacd9,30|14|baacd9,29|4|baacd9,16|21|baacd9,19|18|baacd9,34|15|baacd9,26|9|baacd9,34|21|baacd9,13|9|baacd9,2|19|baacd9,11|16|baacd9,37|17|baacd9,2|13|baacd8,16|18|baacd9,30|20|baacd9,3|10|bbacd8,16|15|baacd9,29|20|baacd9,10|10|baacd9,31|20|baacd9,32|10|baacd9,22|19|baacd9,6|18|baacd9,15|12|baacd9,28|3|baacd7,27|7|baacd9,13|11|baacd9,26|0|baacd7,0|19|baacd9,35|22|baadd9,23|2|baacd9,20|9|baacd9,7|21|baacd9,14|22|baadd9,37|4|baabda,24|14|baacd9,19|14|baacd9,24|10|baacd9,34|4|baacd9,15|19|baacd9,2|6|b9acdb,5|8|baacd9,0|16|baacd9,26|2|baacd7,29|6|baacd9,33|13|baacd9,23|7|baacd9,27|20|baacd9,24|2|baacd9,29|1|baacd7,32|14|baacd9,33|4|baacd9,3|9|baacd9,15|2|baacd9,22|6|baacd9,24|17|baacd9,30|7|baacd9,1|16|baacd9,34|8|baacd9,21|0|baacd9,9|11|baacd9,1|20|baacd9,35|3|baacd9,33|17|baacd9,27|12|baacd9,30|18|baacd9,6|1|b9add9,6|22|baadd9,3|3|b9add9,12|7|baabdb,18|19|baacd9,11|7|baabdb,24|0|baacd9,1|3|baabdb,20|0|baacd9,19|7|baacd9,15|3|baacd9,15|6|baabdb,1|22|baadd9,20|10|baacd9,14|17|baacd9,1|1|bbacdc,8|7|baabdb,30|22|baadd9,21|1|baacd9,16|16|baacd9,2|7|b9acdb,25|11|baacd9,7|16|baacd9,0|12|bbadd4,20|16|baacd9,19|11|baacd9,14|20|baacd9,24|5|baacd9,22|14|baacd9,23|6|baacd9,35|5|baacd9,17|6|baacd9,8|16|baacd9,27|16|baacd9,31|6|baacd9,7|12|baacd9,13|7|baabdb,15|22|baadd9,34|10|baacd9,8|3|baacd9,2|21|baacd9,24|15|baacd9,32|19|baacd9,10|4|baabdb,17|14|baacd9,33|16|baacd9,10|18|baacd9,0|20|baacd9", // 空格子的多点校验（复用原参数）
                         0.8, 0
                 );
                 // 如果找到空格子（pos[0]>0），立即返回当前格子索引i
@@ -752,7 +752,7 @@ public class CommonActions {
         for (int i = 0; i < grids.size(); i++) {
             int[] rect = grids.get(i);
             try {
-                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "b1a6dd","27|19|c6b6e9,28|3|c6b6e9,19|26|c6b6e9,13|12|c6b6e9,6|16|c6b6e9,11|31|c6b6e9,1|1|c5b6ea,7|10|c6b6e9,32|16|c6b6e9,27|21|c6b6e9,32|14|c6b6e9,22|2|c6b6e9,24|31|c6b6e9,25|29|c6b6e9,32|20|c6b6e9,2|12|c5b6ea,4|10|c6b6e9,13|8|c6b6e9,16|17|c6b6e9,4|13|c6b6e9,1|4|c5b7ec,15|20|c6b6e9,6|24|c6b6e9,21|10|c6b6e9,13|29|c6b6e9,31|21|c6b6e9,19|30|c6b6e9,24|0|b6a8de,9|7|c6b5eb,12|14|c6b6e9,14|21|c6b6e9,7|20|c6b6e9,6|22|c6b6e9",0.8,0);
+                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "bbacdc","23|12|baacd9,20|7|baacd9,33|19|baacd9,6|10|bbacd8,29|19|baacd9,16|13|baacd9,21|15|baacd9,32|21|baacd9,2|14|baacd9,16|10|baacd9,29|9|baacd9,8|1|baacd9,29|16|baacd9,29|0|baacd7,2|17|baacd9,20|11|baacd9,30|11|baacd9,26|4|baacd9,16|2|baacd9,9|9|baacd9,37|6|baabda,14|9|baacd9,18|9|baacd9,2|12|bcabd7,21|22|baadd9,17|13|baacd9,13|10|baacd9,0|15|baacd9,32|8|baacd9,9|18|baacd9,4|17|baacd9,8|18|baacd9,2|0|b9adda,28|17|baacd9,25|17|baacd9,9|10|baacd9,29|5|baacd9,29|3|baacd7,4|11|bbacd7,25|10|baacd9,33|11|baacd9,20|15|baacd9,35|14|baacd9,0|11|baacd8,25|16|baacd9,27|6|baacd9,18|10|baacd9,24|11|baacd9,7|5|baabdb,26|1|baacd7,0|9|baacd9,15|21|baacd9,26|7|baacd9,10|11|baacd9,24|7|baacd9,11|19|baacd9,6|3|b9add9,3|0|b8add9,8|22|baadd9,37|2|baacd9,37|10|baabda,21|11|baacd9,27|13|baacd9,0|13|baacd6,2|2|b9acda,18|21|baacd9,17|10|baacd9,33|8|baacd9,14|13|baacd9,9|15|baacd9,31|2|baacd7,23|16|baacd9,14|18|baacd9,14|15|baacd9,30|21|baacd9,33|9|baacd9,26|21|baacd9,7|9|baacd9,37|22|baacda,25|0|baacd8,17|19|baacd9,5|15|baacd9,31|17|baacd9,4|20|baacd9,21|19|baacd9,11|14|baacd9,20|19|baacd9,16|6|baacd9,14|12|baacd9,25|4|baacd9,31|3|baacd7,22|15|baacd9,9|21|baacd9,19|12|baacd9,27|10|baacd9,9|19|baacd9,7|20|baacd9,36|17|baacd9,3|5|b9acdb,13|13|baacd9,21|18|baacd9,1|19|baacd9,27|2|baacd7,20|8|baacd9,27|9|baacd9,2|15|baacd9,26|22|baadd9,28|19|baacd9,4|7|b9acdb,36|10|baacd9,11|15|baacd9,16|8|baacd9,37|7|baabda,5|1|b9add9,17|4|baacd9,31|8|baacd9,34|16|baacd9,21|8|baacd9,25|12|baacd9,31|10|baacd9,14|3|baacd9,35|7|baacd9,7|22|baadd9,14|14|baacd9,34|2|baacd8,12|11|baacd9,9|2|baacd9,23|3|baacd9,17|16|baacd9,24|4|baacd9,27|17|baacd9,3|13|baacd9,4|3|b9add9,10|15|baacd9,27|4|baacd9,34|3|baacd8,15|9|baacd9,7|4|baabdb,21|7|baacd9,23|20|baacd9,15|15|baacd9,35|0|baacd9,25|13|baacd9,31|7|baacd9,18|17|baacd9,1|13|baacd7,20|12|baacd9,37|21|baacd9,30|14|baacd9,29|4|baacd9,16|21|baacd9,19|18|baacd9,34|15|baacd9,26|9|baacd9,34|21|baacd9,13|9|baacd9,2|19|baacd9,11|16|baacd9,37|17|baacd9,2|13|baacd8,16|18|baacd9,30|20|baacd9,3|10|bbacd8,16|15|baacd9,29|20|baacd9,10|10|baacd9,31|20|baacd9,32|10|baacd9,22|19|baacd9,6|18|baacd9,15|12|baacd9,28|3|baacd7,27|7|baacd9,13|11|baacd9,26|0|baacd7,0|19|baacd9,35|22|baadd9,23|2|baacd9,20|9|baacd9,7|21|baacd9,14|22|baadd9,37|4|baabda,24|14|baacd9,19|14|baacd9,24|10|baacd9,34|4|baacd9,15|19|baacd9,2|6|b9acdb,5|8|baacd9,0|16|baacd9,26|2|baacd7,29|6|baacd9,33|13|baacd9,23|7|baacd9,27|20|baacd9,24|2|baacd9,29|1|baacd7,32|14|baacd9,33|4|baacd9,3|9|baacd9,15|2|baacd9,22|6|baacd9,24|17|baacd9,30|7|baacd9,1|16|baacd9,34|8|baacd9,21|0|baacd9,9|11|baacd9,1|20|baacd9,35|3|baacd9,33|17|baacd9,27|12|baacd9,30|18|baacd9,6|1|b9add9,6|22|baadd9,3|3|b9add9,12|7|baabdb,18|19|baacd9,11|7|baabdb,24|0|baacd9,1|3|baabdb,20|0|baacd9,19|7|baacd9,15|3|baacd9,15|6|baabdb,1|22|baadd9,20|10|baacd9,14|17|baacd9,1|1|bbacdc,8|7|baabdb,30|22|baadd9,21|1|baacd9,16|16|baacd9,2|7|b9acdb,25|11|baacd9,7|16|baacd9,0|12|bbadd4,20|16|baacd9,19|11|baacd9,14|20|baacd9,24|5|baacd9,22|14|baacd9,23|6|baacd9,35|5|baacd9,17|6|baacd9,8|16|baacd9,27|16|baacd9,31|6|baacd9,7|12|baacd9,13|7|baabdb,15|22|baadd9,34|10|baacd9,8|3|baacd9,2|21|baacd9,24|15|baacd9,32|19|baacd9,10|4|baabdb,17|14|baacd9,33|16|baacd9,10|18|baacd9,0|20|baacd9",0.8,0);
                 if (pos != null && pos[0] > 0 && pos[1] > 0) {
                     matchedIndices.add(i); // 找到则加入编号列表
                 }
@@ -771,7 +771,7 @@ public class CommonActions {
         for (int i = 0; i < grids.size(); i++) {
             int[] rect = grids.get(i);
             try {
-                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "b1a6dd","27|19|c6b6e9,28|3|c6b6e9,19|26|c6b6e9,13|12|c6b6e9,6|16|c6b6e9,11|31|c6b6e9,1|1|c5b6ea,7|10|c6b6e9,32|16|c6b6e9,27|21|c6b6e9,32|14|c6b6e9,22|2|c6b6e9,24|31|c6b6e9,25|29|c6b6e9,32|20|c6b6e9,2|12|c5b6ea,4|10|c6b6e9,13|8|c6b6e9,16|17|c6b6e9,4|13|c6b6e9,1|4|c5b7ec,15|20|c6b6e9,6|24|c6b6e9,21|10|c6b6e9,13|29|c6b6e9,31|21|c6b6e9,19|30|c6b6e9,24|0|b6a8de,9|7|c6b5eb,12|14|c6b6e9,14|21|c6b6e9,7|20|c6b6e9,6|22|c6b6e9",0.8,0);
+                int[] pos = DeviceHttpClient.findMultiColor(deviceId, rect[0],rect[1],rect[2],rect[3], "bbacdc","23|12|baacd9,20|7|baacd9,33|19|baacd9,6|10|bbacd8,29|19|baacd9,16|13|baacd9,21|15|baacd9,32|21|baacd9,2|14|baacd9,16|10|baacd9,29|9|baacd9,8|1|baacd9,29|16|baacd9,29|0|baacd7,2|17|baacd9,20|11|baacd9,30|11|baacd9,26|4|baacd9,16|2|baacd9,9|9|baacd9,37|6|baabda,14|9|baacd9,18|9|baacd9,2|12|bcabd7,21|22|baadd9,17|13|baacd9,13|10|baacd9,0|15|baacd9,32|8|baacd9,9|18|baacd9,4|17|baacd9,8|18|baacd9,2|0|b9adda,28|17|baacd9,25|17|baacd9,9|10|baacd9,29|5|baacd9,29|3|baacd7,4|11|bbacd7,25|10|baacd9,33|11|baacd9,20|15|baacd9,35|14|baacd9,0|11|baacd8,25|16|baacd9,27|6|baacd9,18|10|baacd9,24|11|baacd9,7|5|baabdb,26|1|baacd7,0|9|baacd9,15|21|baacd9,26|7|baacd9,10|11|baacd9,24|7|baacd9,11|19|baacd9,6|3|b9add9,3|0|b8add9,8|22|baadd9,37|2|baacd9,37|10|baabda,21|11|baacd9,27|13|baacd9,0|13|baacd6,2|2|b9acda,18|21|baacd9,17|10|baacd9,33|8|baacd9,14|13|baacd9,9|15|baacd9,31|2|baacd7,23|16|baacd9,14|18|baacd9,14|15|baacd9,30|21|baacd9,33|9|baacd9,26|21|baacd9,7|9|baacd9,37|22|baacda,25|0|baacd8,17|19|baacd9,5|15|baacd9,31|17|baacd9,4|20|baacd9,21|19|baacd9,11|14|baacd9,20|19|baacd9,16|6|baacd9,14|12|baacd9,25|4|baacd9,31|3|baacd7,22|15|baacd9,9|21|baacd9,19|12|baacd9,27|10|baacd9,9|19|baacd9,7|20|baacd9,36|17|baacd9,3|5|b9acdb,13|13|baacd9,21|18|baacd9,1|19|baacd9,27|2|baacd7,20|8|baacd9,27|9|baacd9,2|15|baacd9,26|22|baadd9,28|19|baacd9,4|7|b9acdb,36|10|baacd9,11|15|baacd9,16|8|baacd9,37|7|baabda,5|1|b9add9,17|4|baacd9,31|8|baacd9,34|16|baacd9,21|8|baacd9,25|12|baacd9,31|10|baacd9,14|3|baacd9,35|7|baacd9,7|22|baadd9,14|14|baacd9,34|2|baacd8,12|11|baacd9,9|2|baacd9,23|3|baacd9,17|16|baacd9,24|4|baacd9,27|17|baacd9,3|13|baacd9,4|3|b9add9,10|15|baacd9,27|4|baacd9,34|3|baacd8,15|9|baacd9,7|4|baabdb,21|7|baacd9,23|20|baacd9,15|15|baacd9,35|0|baacd9,25|13|baacd9,31|7|baacd9,18|17|baacd9,1|13|baacd7,20|12|baacd9,37|21|baacd9,30|14|baacd9,29|4|baacd9,16|21|baacd9,19|18|baacd9,34|15|baacd9,26|9|baacd9,34|21|baacd9,13|9|baacd9,2|19|baacd9,11|16|baacd9,37|17|baacd9,2|13|baacd8,16|18|baacd9,30|20|baacd9,3|10|bbacd8,16|15|baacd9,29|20|baacd9,10|10|baacd9,31|20|baacd9,32|10|baacd9,22|19|baacd9,6|18|baacd9,15|12|baacd9,28|3|baacd7,27|7|baacd9,13|11|baacd9,26|0|baacd7,0|19|baacd9,35|22|baadd9,23|2|baacd9,20|9|baacd9,7|21|baacd9,14|22|baadd9,37|4|baabda,24|14|baacd9,19|14|baacd9,24|10|baacd9,34|4|baacd9,15|19|baacd9,2|6|b9acdb,5|8|baacd9,0|16|baacd9,26|2|baacd7,29|6|baacd9,33|13|baacd9,23|7|baacd9,27|20|baacd9,24|2|baacd9,29|1|baacd7,32|14|baacd9,33|4|baacd9,3|9|baacd9,15|2|baacd9,22|6|baacd9,24|17|baacd9,30|7|baacd9,1|16|baacd9,34|8|baacd9,21|0|baacd9,9|11|baacd9,1|20|baacd9,35|3|baacd9,33|17|baacd9,27|12|baacd9,30|18|baacd9,6|1|b9add9,6|22|baadd9,3|3|b9add9,12|7|baabdb,18|19|baacd9,11|7|baabdb,24|0|baacd9,1|3|baabdb,20|0|baacd9,19|7|baacd9,15|3|baacd9,15|6|baabdb,1|22|baadd9,20|10|baacd9,14|17|baacd9,1|1|bbacdc,8|7|baabdb,30|22|baadd9,21|1|baacd9,16|16|baacd9,2|7|b9acdb,25|11|baacd9,7|16|baacd9,0|12|bbadd4,20|16|baacd9,19|11|baacd9,14|20|baacd9,24|5|baacd9,22|14|baacd9,23|6|baacd9,35|5|baacd9,17|6|baacd9,8|16|baacd9,27|16|baacd9,31|6|baacd9,7|12|baacd9,13|7|baabdb,15|22|baadd9,34|10|baacd9,8|3|baacd9,2|21|baacd9,24|15|baacd9,32|19|baacd9,10|4|baabdb,17|14|baacd9,33|16|baacd9,10|18|baacd9,0|20|baacd9",0.8,0);
                 if (pos != null && pos[0] > 0 && pos[1] > 0) {
                     matchedIndices.add(i); // 找到则加入编号列表
                 }
@@ -2000,13 +2000,15 @@ public class CommonActions {
 
     /**
      * 识别仓库页面中背包除了指定物品外的其他物品，并将其转移到仓库空格子中
-     * 如果当前页没有空格子则向下翻页继续寻找
+     * 只识别一次背包物品，转移过程中如果当前页仓库满了则自动翻页
      */
     public void transferBagItemsToWarehouse() {
         TaskStepNotifier.notifyStep(context.getDeviceId(), "开始转移背包物品到仓库...");
 
         // 需要排除的物品列表
-        String[] excludedItems = {"飞行棋", "飞行符", "红碗", "蓝碗", "摄妖香"};
+        String[] excludedItems = {"红色飞行棋", "飞行符", "红碗", "蓝碗", "摄妖香"};
+        // 存储需要转移的物品格子（只识别一次）
+        List<Integer> transferableItems = new ArrayList<>();
 
         try {
             // 确保仓库界面已打开
@@ -2016,69 +2018,69 @@ public class CommonActions {
                 Thread.sleep(waittime);
             }
 
-            while (true) {
+            // 1. 只识别一次背包中需要转移的物品（核心修改点）
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "开始识别背包中需要转移的物品...");
+            List<Integer> allBagItems = getAllNonEmptyBagItems();
+            transferableItems = filterExcludedItems(allBagItems, excludedItems);
+
+            if (transferableItems.isEmpty()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "背包中没有可转移的物品，转移完成");
+                return;
+            }
+
+            TaskStepNotifier.notifyStep(context.getDeviceId(),
+                    "共识别到 " + transferableItems.size() + " 个需要转移的物品，开始执行转移...");
+
+            // 2. 遍历需要转移的物品，逐个处理
+            int itemIndex = 0;
+            while (itemIndex < transferableItems.size()) {
+                // 检查任务状态
                 if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(), "任务已终止");
                     return;
                 }
                 taskThread.checkPause();
 
-                // 1. 获取仓库界面背包中所有非空格子
-                List<Integer> allBagItems = getAllNonEmptyBagItems();
-
-                // 2. 筛选出非排除物品的格子
-                List<Integer> transferableItems = filterExcludedItems(allBagItems, excludedItems);
-
-                if (transferableItems.isEmpty()) {
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "背包中没有可转移的物品，转移完成");
-                    break;
-                }
-
-                TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "发现 " + transferableItems.size() + " 个可转移的物品格子");
-
                 // 3. 查找当前页仓库空格子
-                List<Integer> emptyWarehouseSlots = findEmptyCangkuIndices(context.getDeviceId());
+                int emptyWarehouseSlots = findFirstEmptyCangkuIndex(context.getDeviceId());
 
-                if (emptyWarehouseSlots.isEmpty()) {
+                if (emptyWarehouseSlots<0) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(), "当前页仓库无空格子，尝试翻页...");
 
                     // 检查是否可以翻页
                     if (canPageDown()) {
                         pageDown();
-                        Thread.sleep(waittime);
-                        continue; // 翻页后重新检查
+                        Thread.sleep(waittime); // 等待翻页完成
+                        continue; // 翻页后重新查找空格子
                     } else {
-                        TaskStepNotifier.notifyStep(context.getDeviceId(), "已到最后一页且无空格子，转移终止");
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "已到最后一页且无空格子，无法继续转移");
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "未完成转移：剩余 " + (transferableItems.size() - itemIndex) + " 个物品");
                         break;
                     }
                 }
 
-                // 4. 执行转移操作（一次转移一个物品）
-                int transferCount = Math.min(transferableItems.size(), emptyWarehouseSlots.size());
+                // 4. 使用当前页的空格子转移物品（一次处理一个）
+                int bagGridIndex = transferableItems.get(itemIndex);
                 TaskStepNotifier.notifyStep(context.getDeviceId(),
-                        "开始转移 " + transferCount + " 个物品到仓库");
+                        "转移第 " + (itemIndex + 1) + "/" + transferableItems.size() +
+                                " 个物品，背包格子索引: " + bagGridIndex);
 
-                for (int i = 0; i < transferCount; i++) {
-                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
-                        return;
-                    }
-                    taskThread.checkPause();
+                // 双击背包格子转移物品
+                doubleclickcangkujiemianBagGrid(context.getDeviceId(), bagGridIndex);
 
-                    int bagGridIndex = transferableItems.get(i);
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),
-                            "转移第 " + (i + 1) + " 个物品，背包格子索引: " + bagGridIndex);
+                // 随机延迟，模拟人工操作
+                Thread.sleep(new Random().nextInt(100) + 0);
 
-                    // 双击背包格子来转移物品
-                    doubleclickcangkujiemianBagGrid(context.getDeviceId(), bagGridIndex);
-                    Thread.sleep(new Random().nextInt(300) + 500); // 随机延迟避免操作过快
-                }
-
-                // 转移完成后短暂等待，然后重新检查
-                Thread.sleep(waittime);
+                // 处理下一个物品
+                itemIndex++;
             }
 
-            TaskStepNotifier.notifyStep(context.getDeviceId(), "背包物品转移到仓库完成");
+            if (itemIndex == transferableItems.size()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "所有物品转移完成");
+            }
+
+            closeWarehouse();
 
         } catch (Exception e) {
             TaskStepNotifier.notifyStep(context.getDeviceId(),
@@ -2134,7 +2136,7 @@ public class CommonActions {
                     if (foundIndex == gridIndex) {
                         isExcluded = true;
                         TaskStepNotifier.notifyStep(context.getDeviceId(),
-                                "格子 " + gridIndex + " 包含排除物品: " + excludedItem);
+                                "格子 " + (gridIndex+1) + " 包含排除物品: " + excludedItem);
                         break;
                     }
                 } catch (Exception e) {
@@ -2145,6 +2147,7 @@ public class CommonActions {
 
             // 如果不是排除物品，加入可转移列表
             if (!isExcluded) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(),"格子"+(gridIndex+1)+"需要存入");
                 transferableItems.add(gridIndex);
             }
         }
@@ -2304,7 +2307,7 @@ public class CommonActions {
                                 System.out.println("获取有效坐标，准备点击: (" + x + ", " + y + ")");
 
 
-                                DeviceHttpClient.click(context.getDeviceId(),"left",x,y);
+                                DeviceHttpClient.click(context.getDeviceId(),"left",(203+x),(56+y));
                                 isSuccess = true;
                                 System.out.println("点击操作已执行");
                             } else {
@@ -2448,7 +2451,7 @@ public class CommonActions {
 
                                 // 调用HumanlikerController的click方法进行点击
 
-
+                                human.click(context.getDeviceId(), x+203, y+56,0,0);
                                 isSuccess = true;
                                 System.out.println("点击操作已执行");
                             } else {
@@ -2490,18 +2493,22 @@ public class CommonActions {
     /**
      * sizichengyu方法：处理四字成语的依次点击（单个方法实现）
      * 响应格式示例：29,150,不|90,154,惶|145,151,惶|195,160,安|=惶惶不安
-     * @param base64Image 图片的base64字符串
      */
-    public void sizichengyu(String base64Image) {
+    public void sizichengyu() {
         // 配置信息
         String miyao = "123456";
         int port = 1071;
         int maxRetryCount = 3;
         int retryIntervalMs = 1000;
         int clickDelayMs = 500; // 点击间隔时间
+        int[] firstCharCoords = null; // 在方法开始就声明，保存第一个字的坐标
 
         System.out.println("开始处理四字成语点击...");
         String idiom = null;
+
+        // 获取初始截图和裁剪
+        String screenshotBase64 = DeviceHttpClient.getScreenshotBase64(context.getDeviceId());
+        String imgBase64 = cropImage(screenshotBase64, 200, 30, 385, 267);
 
         // 首次请求获取成语信息
         for (int initRetry = 0; initRetry < maxRetryCount; initRetry++) {
@@ -2529,7 +2536,7 @@ public class CommonActions {
                 connection.setDoOutput(true);
                 connection.setRequestProperty("Content-Type", "text/plain");
                 try (OutputStream os = connection.getOutputStream()) {
-                    os.write(base64Image.getBytes(StandardCharsets.UTF_8));
+                    os.write(imgBase64.getBytes(StandardCharsets.UTF_8));
                 }
 
                 // 处理响应
@@ -2548,9 +2555,17 @@ public class CommonActions {
                     }
                 }
                 String responseContent = response.toString();
+
+                // 添加URL解码
+                try {
+                    responseContent = URLDecoder.decode(responseContent, StandardCharsets.UTF_8.name());
+                } catch (UnsupportedEncodingException e) {
+                    System.err.println("URL解码失败: " + e.getMessage());
+                }
+
                 System.out.println("首次响应内容: " + responseContent);
 
-                // 提取成语
+                // 提取成语并处理第一个字
                 int equalIndex = responseContent.indexOf('=');
                 if (equalIndex == -1) {
                     System.err.println("未找到成语分隔符'='");
@@ -2559,7 +2574,27 @@ public class CommonActions {
                 idiom = responseContent.substring(equalIndex + 1).trim();
                 if (idiom.length() == 4) {
                     System.out.println("获取到四字成语: " + idiom);
-                    break;
+
+                    // 处理第一个字（使用首次响应的数据）
+                    char firstChar = idiom.charAt(0);
+                    System.out.println("\n===== 处理第1个字: " + firstChar + " =====");
+
+                    int[] coords = processCharacterClick(responseContent, firstChar, 1);
+                    if (coords != null) {
+                        firstCharCoords = coords; // 保存第一个字坐标
+                        System.out.println("第1个字点击完成");
+                        // 点击间隔
+                        try {
+                            Thread.sleep(clickDelayMs);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return;
+                        }
+                        break; // 成功处理第一个字，跳出重试循环
+                    } else {
+                        System.err.println("无法点击第1个字");
+                        continue; // 重试
+                    }
                 } else {
                     System.err.println("获取的成语不是四字: " + idiom);
                 }
@@ -2573,17 +2608,28 @@ public class CommonActions {
             }
         }
 
-        // 检查是否获取到有效成语
-        if (idiom == null || idiom.length() != 4) {
-            System.err.println("无法获取有效的四字成语，终止操作");
+        // 检查是否获取到有效成语并成功处理第一个字
+        if (idiom == null || idiom.length() != 4 || firstCharCoords == null) {
+            System.err.println("无法获取有效的四字成语或第一个字坐标，执行备用方案");
+            executeBackupPlan();
             return;
         }
 
-        // 依次点击每个字
-        for (int i = 0; i < 4; i++) {
+        // 处理剩余的字（第2、3、4个字）
+        for (int i = 1; i < 4; i++) {
             char currentChar = idiom.charAt(i);
             System.out.println("\n===== 处理第" + (i + 1) + "个字: " + currentChar + " =====");
             boolean clicked = false;
+
+            String currentImgBase64;
+            // 第一个字使用初始截图，后续字重新截图
+            if (i == 0) {
+                currentImgBase64 = imgBase64; // 使用初始截图
+            } else {
+                // 重新截图和裁剪
+                String newScreenshotBase64 = DeviceHttpClient.getScreenshotBase64(context.getDeviceId());
+                currentImgBase64 = cropImage(newScreenshotBase64, 200, 30, 385, 267);
+            }
 
             // 重试获取当前字的坐标
             for (int retry = 0; retry < maxRetryCount; retry++) {
@@ -2605,13 +2651,13 @@ public class CommonActions {
                             URLEncoder.encode(timeStr, StandardCharsets.UTF_8.name()),
                             URLEncoder.encode(sign, StandardCharsets.UTF_8.name()));
 
-                    // 发送请求
+                    // 发送请求（使用当前截图）
                     HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();
                     connection.setRequestMethod("POST");
                     connection.setDoOutput(true);
                     connection.setRequestProperty("Content-Type", "text/plain");
                     try (OutputStream os = connection.getOutputStream()) {
-                        os.write(base64Image.getBytes(StandardCharsets.UTF_8));
+                        os.write(currentImgBase64.getBytes(StandardCharsets.UTF_8));
                     }
 
                     // 处理响应
@@ -2630,44 +2676,26 @@ public class CommonActions {
                         }
                     }
                     String responseContent = response.toString();
+
+                    // 添加URL解码
+                    try {
+                        responseContent = URLDecoder.decode(responseContent, StandardCharsets.UTF_8.name());
+                    } catch (UnsupportedEncodingException e) {
+                        System.err.println("URL解码失败: " + e.getMessage());
+                    }
+
                     System.out.println("响应内容: " + responseContent);
 
-                    // 解析坐标和字符映射
-                    int equalIndex = responseContent.indexOf('=');
-                    if (equalIndex == -1) {
-                        System.err.println("未找到分隔符'='");
-                        continue;
-                    }
-                    String coordinatePart = responseContent.substring(0, equalIndex).trim();
-                    String[] records = coordinatePart.split("\\|");
-
-                    Map<Character, int[]> charMap = new HashMap<>();
-                    for (String record : records) {
-                        String[] parts = record.split(",");
-                        if (parts.length >= 3) {
-                            try {
-                                int x = Integer.parseInt(parts[0].trim());
-                                int y = Integer.parseInt(parts[1].trim());
-                                String charStr = parts[2].trim();
-                                if (charStr.length() == 1) {
-                                    charMap.put(charStr.charAt(0), new int[]{x, y});
-                                }
-                            } catch (NumberFormatException e) {
-                                System.err.println("坐标解析错误: " + record);
-                            }
+                    // 处理当前字的点击
+                    int[] coords = processCharacterClick(responseContent, currentChar, i + 1);
+                    if (coords != null) {
+                        // 保存第一个字的坐标
+                        if (i == 0) {
+                            firstCharCoords = coords;
                         }
-                    }
-
-                    // 查找当前字的坐标并点击
-                    if (charMap.containsKey(currentChar)) {
-                        int[] coords = charMap.get(currentChar);
-                        System.out.println("找到坐标: (" + coords[0] + ", " + coords[1] + ")");
-                        DeviceHttpClient.click(context.getDeviceId(),"left",coords[0], coords[1]);
                         clicked = true;
                         System.out.println("第" + (i + 1) + "个字点击完成");
                         break;
-                    } else {
-                        System.err.println("未找到字'" + currentChar + "'的坐标");
                     }
                 } catch (Exception e) {
                     System.err.println("请求错误: " + e.getMessage());
@@ -2679,9 +2707,10 @@ public class CommonActions {
                 }
             }
 
-            // 如果当前字点击失败，终止后续操作
+            // 如果当前字点击失败，执行备用方案
             if (!clicked) {
-                System.err.println("无法点击第" + (i + 1) + "个字，终止操作");
+                System.err.println("无法点击第" + (i + 1) + "个字，执行备用方案");
+                executeCharacterNotFoundBackup(firstCharCoords);
                 return;
             }
 
@@ -2693,9 +2722,124 @@ public class CommonActions {
                 return;
             }
         }
-
+        HumanLikeController human = new HumanLikeController(taskThread);
+        human.clickImg(context.getDeviceId(),"红色确定",0,0);
         System.out.println("\n所有四字成语点击操作完成");
     }
+
+    /**
+     * 处理字符点击的通用方法
+     * @param responseContent OCR响应内容
+     * @param targetChar 目标字符
+     * @param position 字符位置（用于日志）
+     * @return 点击的坐标数组[x, y]，如果失败返回null
+     */
+    private int[] processCharacterClick(String responseContent, char targetChar, int position) {
+        try {
+            // 解析坐标和字符映射
+            int equalIndex = responseContent.indexOf('=');
+            if (equalIndex == -1) {
+                System.err.println("未找到分隔符'='");
+                return null;
+            }
+            String coordinatePart = responseContent.substring(0, equalIndex).trim();
+            String[] records = coordinatePart.split("\\|");
+
+            Map<Character, int[]> charMap = new HashMap<>();
+            for (String record : records) {
+                String[] parts = record.split(",");
+                if (parts.length >= 3) {
+                    try {
+                        int x = Integer.parseInt(parts[0].trim());
+                        int y = Integer.parseInt(parts[1].trim());
+                        String charStr = parts[2].trim();
+                        if (charStr.length() == 1) {
+                            charMap.put(charStr.charAt(0), new int[]{x, y});
+                        }
+                    } catch (NumberFormatException e) {
+                        System.err.println("坐标解析错误: " + record);
+                    }
+                }
+            }
+
+            // 查找当前字的坐标并点击
+            if (charMap.containsKey(targetChar)) {
+                int[] coords = charMap.get(targetChar);
+                System.out.println("找到坐标: (" + coords[0] + ", " + coords[1] + ")");
+                DeviceHttpClient.click(context.getDeviceId(), "left", coords[0]+200, 30+coords[1]);
+                return coords;
+            } else {
+                System.err.println("未找到字'" + targetChar + "'的坐标");
+                return null;
+            }
+        } catch (Exception e) {
+            System.err.println("处理字符点击错误: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 字符未找到时的备用方案：点击第一个字坐标，然后点击重置按钮
+     */
+    private void executeCharacterNotFoundBackup(int[] firstCharCoords) {
+        try {
+            System.out.println("开始执行字符未找到备用方案...");
+
+            if (firstCharCoords != null) {
+                System.out.println("点击第一个字坐标: (" + firstCharCoords[0] + ", " + firstCharCoords[1] + ")");
+                DeviceHttpClient.click(context.getDeviceId(), "left", firstCharCoords[0], firstCharCoords[1]);
+
+                // 等待一下
+                Thread.sleep(500);
+            } else {
+                System.out.println("第一个字坐标不可用，跳过点击");
+            }
+
+            // 点击重置按钮 (324, 268)
+            System.out.println("点击重置按钮: (324, 268)");
+            DeviceHttpClient.click(context.getDeviceId(), "left", 324, 268);
+
+            System.out.println("字符未找到备用方案执行完成");
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("字符未找到备用方案执行被中断");
+        } catch (Exception e) {
+            System.err.println("字符未找到备用方案执行出错: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 备用方案：随便点击一个坐标，然后点击固定坐标
+     */
+    private void executeBackupPlan() {
+        try {
+            System.out.println("开始执行备用方案...");
+
+            // 随便点击一个坐标（可以选择一个相对安全的区域，比如屏幕中央附近）
+            int randomX = 300; // 可以设置为一个合理的默认坐标
+            int randomY = 200;
+            System.out.println("随机点击坐标");
+            DeviceHttpClient.click(context.getDeviceId(), "left", 242, 156);
+
+            // 等待一下
+            Thread.sleep(500);
+
+            // 点击固定坐标 (324, 268)
+            System.out.println("点击固定坐标: (324, 268)");
+            DeviceHttpClient.click(context.getDeviceId(), "left", 324, 268);
+
+            System.out.println("备用方案执行完成");
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("备用方案执行被中断");
+        } catch (Exception e) {
+            System.err.println("备用方案执行出错: " + e.getMessage());
+        }
+    }
+
+
 
 
     /**
