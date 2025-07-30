@@ -2,15 +2,21 @@ package com.my.qwe.task;
 
 import com.my.qwe.controller.HumanLikeController;
 import com.my.qwe.http.DeviceHttpClient;
-import com.my.qwe.task.TaskContext;
 import com.my.qwe.task.config.IniConfigLoader;
 import com.my.qwe.util.BagGridUtil;
-import org.bytedeco.opencv.opencv_core.Device;
 
-import java.io.IOException;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class CommonActions {
     private final TaskContext context;
@@ -2189,5 +2195,577 @@ public class CommonActions {
 
         return transferableItems;
     }
+
+
+
+    /**
+     * 处理漂浮字弹窗验证   1033四小人返回258,118  1071成语返回29,150,不|90,154,惶|145,151,惶|195,160,安|=惶惶不安   1081漂浮字258,118|22,33    成语需循环处理
+     * @param base64Image 图片的base64字符串
+     * @return 解析后的int数组，错误时返回null
+     */
+    public void piaofuzi(String base64Image) {
+        // 配置信息
+        String miyao = "123456";
+        int port = 1081;
+        int maxRetryCount = 3; // 最大重试次数
+        int retryIntervalMs = 1000; // 重试间隔(毫秒)
+        HumanLikeController human = new HumanLikeController(taskThread);
+
+        int retryCount = 0;
+        boolean isSuccess = false;
+
+        // 循环重试直到成功或达到最大次数
+        while (retryCount < maxRetryCount && !isSuccess) {
+            System.out.println("\n===== 第" + (retryCount + 1) + "次尝试 =====");
+
+            try {
+                // 1. 生成时间戳
+                long timestamp = System.currentTimeMillis() / 1000;
+                String timeStr = String.valueOf(timestamp);
+                System.out.println("时间戳: " + timeStr);
+
+                // 2. 计算MD5签名
+                String signStr = miyao + timeStr;
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] messageDigest = md.digest(signStr.getBytes(StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : messageDigest) {
+                    String hex = Integer.toHexString(0xFF & b);
+                    if (hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex);
+                }
+                String sign = hexString.toString();
+                System.out.println("签名: " + sign);
+
+                // 3. 构建请求URL
+                String urlString = String.format("http://127.0.0.1:%d/ocr?time=%s&sign=%s",
+                        port,
+                        URLEncoder.encode(timeStr, StandardCharsets.UTF_8.name()),
+                        URLEncoder.encode(sign, StandardCharsets.UTF_8.name()));
+
+                // 4. 创建HTTP连接
+                URL url = new URL(urlString);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", "text/plain");
+
+                // 5. 发送数据
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = base64Image.getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                // 6. 读取响应
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    try (BufferedReader br = new BufferedReader(
+                            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder response = new StringBuilder();
+                        String responseLine;
+                        while ((responseLine = br.readLine()) != null) {
+                            response.append(responseLine.trim());
+                        }
+
+                        String responseContent = response.toString();
+                        System.out.println("响应内容: " + responseContent);
+
+                        // 7. 解析结果
+                        String[] parts = responseContent.split("\\|");
+                        if (parts.length < 1) {
+                            System.err.println("响应格式错误，未找到分隔符|");
+                            break;
+                        } else {
+                            String[] numberStrs = parts[0].split(",");
+                            int[] coordinates = new int[numberStrs.length];
+                            boolean valid = true;
+
+                            // 验证并转换为int数组
+                            for (int i = 0; i < numberStrs.length; i++) {
+                                try {
+                                    coordinates[i] = Integer.parseInt(numberStrs[i].trim());
+                                    // 简单验证：坐标应为正数
+                                    if (coordinates[i] <= 0) {
+                                        valid = false;
+                                        break;
+                                    }
+                                } catch (NumberFormatException e) {
+                                    valid = false;
+                                    break;
+                                }
+                            }
+
+                            if (valid && coordinates.length >= 2) {
+                                // 假设坐标是x,y格式，取前两个值作为点击坐标
+                                int x = coordinates[0];
+                                int y = coordinates[1];
+                                System.out.println("获取有效坐标，准备点击: (" + x + ", " + y + ")");
+
+
+                                DeviceHttpClient.click(context.getDeviceId(),"left",x,y);
+                                isSuccess = true;
+                                System.out.println("点击操作已执行");
+                            } else {
+                                System.err.println("坐标无效或格式错误，需要至少2个正整数坐标");
+                            }
+                        }
+                    }
+                } else {
+                    System.err.println("请求失败，状态码: " + responseCode);
+                }
+            } catch (NoSuchAlgorithmException e) {
+                System.err.println("MD5算法错误: " + e.getMessage());
+            } catch (IOException e) {
+                System.err.println("网络请求错误: " + e.getMessage());
+            } catch (Exception e) {
+                System.err.println("发生未知错误: " + e.getMessage());
+            }
+
+            // 准备重试
+            if (!isSuccess) {
+                retryCount++;
+                if (retryCount < maxRetryCount) {
+                    System.out.println("将在" + retryIntervalMs + "毫秒后重试...");
+                    try {
+                        Thread.sleep(retryIntervalMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (!isSuccess) {
+            System.err.println("已达到最大重试次数(" + maxRetryCount + ")，无法执行点击操作");
+        }
+    }
+
+    /**
+     * sixiaoren方法，处理响应结果为123,321或-1（无|分隔符）的情况
+     * @param base64Image 图片的base64字符串
+     */
+    public void sixiaoren(String base64Image) {
+        // 配置信息
+        String miyao = "123456";
+        int port = 1033;
+        int maxRetryCount = 3; // 最大重试次数
+        int retryIntervalMs = 1000; // 重试间隔(毫秒)
+        HumanLikeController human = new HumanLikeController(taskThread);
+
+        int retryCount = 0;
+        boolean isSuccess = false;
+
+        // 循环重试直到成功或达到最大次数
+        while (retryCount < maxRetryCount && !isSuccess) {
+            System.out.println("\n===== 第" + (retryCount + 1) + "次尝试 =====");
+
+            try {
+                // 1. 生成时间戳
+                long timestamp = System.currentTimeMillis() / 1000;
+                String timeStr = String.valueOf(timestamp);
+                System.out.println("时间戳: " + timeStr);
+
+                // 2. 计算MD5签名
+                String signStr = miyao + timeStr;
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] messageDigest = md.digest(signStr.getBytes(StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : messageDigest) {
+                    String hex = Integer.toHexString(0xFF & b);
+                    if (hex.length() == 1) {
+                        hexString.append('0');
+                    }
+                    hexString.append(hex);
+                }
+                String sign = hexString.toString();
+                System.out.println("签名: " + sign);
+
+                // 3. 构建请求URL
+                String urlString = String.format("http://127.0.0.1:%d/ocr?time=%s&sign=%s",
+                        port,
+                        URLEncoder.encode(timeStr, StandardCharsets.UTF_8.name()),
+                        URLEncoder.encode(sign, StandardCharsets.UTF_8.name()));
+
+                // 4. 创建HTTP连接
+                URL url = new URL(urlString);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", "text/plain");
+
+                // 5. 发送数据
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = base64Image.getBytes(StandardCharsets.UTF_8);
+                    os.write(input, 0, input.length);
+                }
+
+                // 6. 读取响应
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    try (BufferedReader br = new BufferedReader(
+                            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder response = new StringBuilder();
+                        String responseLine;
+                        while ((responseLine = br.readLine()) != null) {
+                            response.append(responseLine.trim());
+                        }
+
+                        String responseContent = response.toString();
+                        System.out.println("响应内容: " + responseContent);
+
+                        // 7. 解析结果（无|分隔符，处理123,321或-1格式）
+                        // 检查是否为-1（表示无结果）
+                        if ("-1".equals(responseContent)) {
+                            System.err.println("响应结果为-1，无有效坐标");
+                        } else {
+                            String[] numberStrs = responseContent.split(",");
+                            int[] coordinates = new int[numberStrs.length];
+                            boolean valid = true;
+
+                            // 验证并转换为int数组
+                            for (int i = 0; i < numberStrs.length; i++) {
+                                try {
+                                    coordinates[i] = Integer.parseInt(numberStrs[i].trim());
+                                    // 简单验证：坐标应为正数（-1已单独处理）
+                                    if (coordinates[i] <= 0) {
+                                        valid = false;
+                                        break;
+                                    }
+                                } catch (NumberFormatException e) {
+                                    valid = false;
+                                    break;
+                                }
+                            }
+
+                            if (valid && coordinates.length >= 2) {
+                                // 取前两个值作为点击坐标
+                                int x = coordinates[0];
+                                int y = coordinates[1];
+                                System.out.println("获取有效坐标，准备点击: (" + x + ", " + y + ")");
+
+                                // 调用HumanlikerController的click方法进行点击
+
+
+                                isSuccess = true;
+                                System.out.println("点击操作已执行");
+                            } else {
+                                System.err.println("坐标无效或格式错误，需要至少2个正整数坐标");
+                            }
+                        }
+                    }
+                } else {
+                    System.err.println("请求失败，状态码: " + responseCode);
+                }
+            } catch (NoSuchAlgorithmException e) {
+                System.err.println("MD5算法错误: " + e.getMessage());
+            } catch (IOException e) {
+                System.err.println("网络请求错误: " + e.getMessage());
+            } catch (Exception e) {
+                System.err.println("发生未知错误: " + e.getMessage());
+            }
+
+            // 准备重试
+            if (!isSuccess) {
+                retryCount++;
+                if (retryCount < maxRetryCount) {
+                    System.out.println("将在" + retryIntervalMs + "毫秒后重试...");
+                    try {
+                        Thread.sleep(retryIntervalMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (!isSuccess) {
+            System.err.println("已达到最大重试次数(" + maxRetryCount + ")，无法执行点击操作");
+        }
+    }
+
+    /**
+     * sizichengyu方法：处理四字成语的依次点击（单个方法实现）
+     * 响应格式示例：29,150,不|90,154,惶|145,151,惶|195,160,安|=惶惶不安
+     * @param base64Image 图片的base64字符串
+     */
+    public void sizichengyu(String base64Image) {
+        // 配置信息
+        String miyao = "123456";
+        int port = 1071;
+        int maxRetryCount = 3;
+        int retryIntervalMs = 1000;
+        int clickDelayMs = 500; // 点击间隔时间
+
+        System.out.println("开始处理四字成语点击...");
+        String idiom = null;
+
+        // 首次请求获取成语信息
+        for (int initRetry = 0; initRetry < maxRetryCount; initRetry++) {
+            try {
+                // 生成时间戳和签名
+                long timestamp = System.currentTimeMillis() / 1000;
+                String timeStr = String.valueOf(timestamp);
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] digest = md.digest((miyao + timeStr).getBytes(StandardCharsets.UTF_8));
+                StringBuilder hexSign = new StringBuilder();
+                for (byte b : digest) {
+                    hexSign.append(String.format("%02x", b));
+                }
+                String sign = hexSign.toString();
+
+                // 构建请求URL
+                String urlString = String.format("http://127.0.0.1:%d/ocr?time=%s&sign=%s",
+                        port,
+                        URLEncoder.encode(timeStr, StandardCharsets.UTF_8.name()),
+                        URLEncoder.encode(sign, StandardCharsets.UTF_8.name()));
+
+                // 发送请求
+                HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();
+                connection.setRequestMethod("POST");
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", "text/plain");
+                try (OutputStream os = connection.getOutputStream()) {
+                    os.write(base64Image.getBytes(StandardCharsets.UTF_8));
+                }
+
+                // 处理响应
+                if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                    System.err.println("首次请求失败，状态码: " + connection.getResponseCode());
+                    continue;
+                }
+
+                // 读取响应内容
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader br = new BufferedReader(
+                        new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        response.append(line.trim());
+                    }
+                }
+                String responseContent = response.toString();
+                System.out.println("首次响应内容: " + responseContent);
+
+                // 提取成语
+                int equalIndex = responseContent.indexOf('=');
+                if (equalIndex == -1) {
+                    System.err.println("未找到成语分隔符'='");
+                    continue;
+                }
+                idiom = responseContent.substring(equalIndex + 1).trim();
+                if (idiom.length() == 4) {
+                    System.out.println("获取到四字成语: " + idiom);
+                    break;
+                } else {
+                    System.err.println("获取的成语不是四字: " + idiom);
+                }
+            } catch (Exception e) {
+                System.err.println("首次请求错误: " + e.getMessage());
+            }
+
+            if (initRetry < maxRetryCount - 1) {
+                System.out.println("首次请求重试...");
+                try { Thread.sleep(retryIntervalMs); } catch (InterruptedException ie) { return; }
+            }
+        }
+
+        // 检查是否获取到有效成语
+        if (idiom == null || idiom.length() != 4) {
+            System.err.println("无法获取有效的四字成语，终止操作");
+            return;
+        }
+
+        // 依次点击每个字
+        for (int i = 0; i < 4; i++) {
+            char currentChar = idiom.charAt(i);
+            System.out.println("\n===== 处理第" + (i + 1) + "个字: " + currentChar + " =====");
+            boolean clicked = false;
+
+            // 重试获取当前字的坐标
+            for (int retry = 0; retry < maxRetryCount; retry++) {
+                try {
+                    // 生成时间戳和签名
+                    long timestamp = System.currentTimeMillis() / 1000;
+                    String timeStr = String.valueOf(timestamp);
+                    MessageDigest md = MessageDigest.getInstance("MD5");
+                    byte[] digest = md.digest((miyao + timeStr).getBytes(StandardCharsets.UTF_8));
+                    StringBuilder hexSign = new StringBuilder();
+                    for (byte b : digest) {
+                        hexSign.append(String.format("%02x", b));
+                    }
+                    String sign = hexSign.toString();
+
+                    // 构建请求URL
+                    String urlString = String.format("http://127.0.0.1:%d/ocr?time=%s&sign=%s",
+                            port,
+                            URLEncoder.encode(timeStr, StandardCharsets.UTF_8.name()),
+                            URLEncoder.encode(sign, StandardCharsets.UTF_8.name()));
+
+                    // 发送请求
+                    HttpURLConnection connection = (HttpURLConnection) new URL(urlString).openConnection();
+                    connection.setRequestMethod("POST");
+                    connection.setDoOutput(true);
+                    connection.setRequestProperty("Content-Type", "text/plain");
+                    try (OutputStream os = connection.getOutputStream()) {
+                        os.write(base64Image.getBytes(StandardCharsets.UTF_8));
+                    }
+
+                    // 处理响应
+                    if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                        System.err.println("请求失败，状态码: " + connection.getResponseCode());
+                        continue;
+                    }
+
+                    // 读取响应内容
+                    StringBuilder response = new StringBuilder();
+                    try (BufferedReader br = new BufferedReader(
+                            new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            response.append(line.trim());
+                        }
+                    }
+                    String responseContent = response.toString();
+                    System.out.println("响应内容: " + responseContent);
+
+                    // 解析坐标和字符映射
+                    int equalIndex = responseContent.indexOf('=');
+                    if (equalIndex == -1) {
+                        System.err.println("未找到分隔符'='");
+                        continue;
+                    }
+                    String coordinatePart = responseContent.substring(0, equalIndex).trim();
+                    String[] records = coordinatePart.split("\\|");
+
+                    Map<Character, int[]> charMap = new HashMap<>();
+                    for (String record : records) {
+                        String[] parts = record.split(",");
+                        if (parts.length >= 3) {
+                            try {
+                                int x = Integer.parseInt(parts[0].trim());
+                                int y = Integer.parseInt(parts[1].trim());
+                                String charStr = parts[2].trim();
+                                if (charStr.length() == 1) {
+                                    charMap.put(charStr.charAt(0), new int[]{x, y});
+                                }
+                            } catch (NumberFormatException e) {
+                                System.err.println("坐标解析错误: " + record);
+                            }
+                        }
+                    }
+
+                    // 查找当前字的坐标并点击
+                    if (charMap.containsKey(currentChar)) {
+                        int[] coords = charMap.get(currentChar);
+                        System.out.println("找到坐标: (" + coords[0] + ", " + coords[1] + ")");
+                        DeviceHttpClient.click(context.getDeviceId(),"left",coords[0], coords[1]);
+                        clicked = true;
+                        System.out.println("第" + (i + 1) + "个字点击完成");
+                        break;
+                    } else {
+                        System.err.println("未找到字'" + currentChar + "'的坐标");
+                    }
+                } catch (Exception e) {
+                    System.err.println("请求错误: " + e.getMessage());
+                }
+
+                if (retry < maxRetryCount - 1) {
+                    System.out.println("重试获取坐标...");
+                    try { Thread.sleep(retryIntervalMs); } catch (InterruptedException ie) { return; }
+                }
+            }
+
+            // 如果当前字点击失败，终止后续操作
+            if (!clicked) {
+                System.err.println("无法点击第" + (i + 1) + "个字，终止操作");
+                return;
+            }
+
+            // 点击间隔
+            try {
+                Thread.sleep(clickDelayMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+
+        System.out.println("\n所有四字成语点击操作完成");
+    }
+
+
+    /**
+     * 裁剪Base64图片，保存到固定路径(D:\myapp\screenshot+时间戳.png)，并返回纯Base64内容
+     * @param base64Str 原始图片的Base64编码（可带前缀）
+     * @param x 裁剪区域左上角x坐标
+     * @param y 裁剪区域左上角y坐标
+     * @param width 裁剪宽度
+     * @param height 裁剪高度
+     * @return 裁剪后的纯Base64字符串（无任何前缀），失败返回null
+     */
+    public String cropImage(String base64Str, int x, int y, int width, int height) {
+        // 固定输出路径和格式
+        String outputPath = "D:\\myapp\\screenshot\\" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + ".png";
+        String format = "png";
+
+        try {
+            // 1. 处理原始Base64（移除前缀）
+            String pureBase64 = base64Str.contains(",") ? base64Str.split(",")[1] : base64Str;
+
+            // 2. Base64解码为图片
+            byte[] imageBytes = Base64.getDecoder().decode(pureBase64);
+            BufferedImage originalImage;
+            try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes)) {
+                originalImage = ImageIO.read(bais);
+            }
+
+            if (originalImage == null) {
+                throw new IOException("无法解析图片，格式不支持");
+            }
+
+            // 3. 验证裁剪坐标
+            int imgWidth = originalImage.getWidth();
+            int imgHeight = originalImage.getHeight();
+            if (x < 0 || y < 0 || width <= 0 || height <= 0
+                    || x + width > imgWidth || y + height > imgHeight) {
+                throw new IllegalArgumentException(
+                        String.format("裁剪坐标无效！图片尺寸: (%d,%d), 裁剪区域: (%d,%d,%d,%d)",
+                                imgWidth, imgHeight, x, y, width, height)
+                );
+            }
+
+            // 4. 执行裁剪
+            BufferedImage croppedImage = originalImage.getSubimage(x, y, width, height);
+
+            // 5. 保存裁剪后的图片文件到固定路径
+            File saveFile = new File(outputPath);
+            // 创建父目录（如果不存在）
+            if (saveFile.getParentFile() != null) {
+                saveFile.getParentFile().mkdirs(); // 自动创建D:\myapp目录（如果不存在）
+            }
+            ImageIO.write(croppedImage, format, saveFile);
+            System.out.println("裁剪图片已保存至：" + saveFile.getAbsolutePath());
+
+            // 6. 将裁剪后的图片转换为纯Base64（无前缀）
+            try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                ImageIO.write(croppedImage, format, baos);
+                baos.flush();
+                return Base64.getEncoder().encodeToString(baos.toByteArray());
+            }
+
+        } catch (IllegalArgumentException e) {
+            System.err.println("坐标错误：" + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("图片处理错误：" + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("裁剪失败：" + e.getMessage());
+        }
+        return null;
+    }
+
 
 }

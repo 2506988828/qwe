@@ -305,6 +305,29 @@ public class GameStateDetector  {
         return loyaltyPos[0] > 0;
     }
 
+    /**
+     * 检测是否出现漂浮字
+     * */
+    public boolean isChuxianpiaofuzi() throws IOException {
+        int[] loyaltyPos = httpClient.findImage(context.getDeviceId(),"漂浮字出现",0.8);
+        return loyaltyPos[0] > 0;
+    }
+    /**
+     * 检测是否出现四小人
+     * */
+    public boolean isChuxiansixiaoren() throws IOException {
+        int[] loyaltyPos = httpClient.findImage(context.getDeviceId(),"四小人出现",0.8);
+        return loyaltyPos[0] > 0;
+    }
+
+    /**
+     * 检测是否出现四字成语
+     * */
+    public boolean isChuxianchengyu() throws IOException {
+        int[] loyaltyPos = httpClient.findImage(context.getDeviceId(),"成语出现",0.8);
+        return loyaltyPos[0] > 0;
+    }
+
 
 
     /**

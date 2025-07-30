@@ -3,6 +3,7 @@ package com.my.qwe.task;
 import com.my.qwe.controller.HumanLikeController;
 import com.my.qwe.http.DeviceHttpClient;
 import com.my.qwe.task.config.IniConfigLoader;
+import org.bytedeco.opencv.opencv_core.Device;
 
 import java.io.IOException;
 import java.util.*;
@@ -152,7 +153,7 @@ public class WatuTask implements ITask {
         BagMapInfo bagMapInfo;
         int gezishu, x, y;
         String scence, pos;
-        int[] jiancezuobiao;
+
         KaituTask kaituTask = new KaituTask();
         DutuTask dutuTask = new DutuTask();
 
@@ -277,6 +278,13 @@ public class WatuTask implements ITask {
                 TaskThread.sleep(new Random().nextInt(200) + 300);
                 commonActions.closeBag();
                 TaskThread.sleep(new Random().nextInt(200) + 300);
+
+                if (gameStateDetector.isChuxianpiaofuzi()){
+                    //截图，裁剪，
+                   String screenshotbase64= DeviceHttpClient.getScreenshotBase64(context.getDeviceId());
+                   String imgbase64=commonActions.cropImage(screenshotbase64,1,1,1,1);
+                    commonActions.piaofuzi(imgbase64);
+                }
 
                 // 战斗循环 - 增强停止检查
                 while (gameStateDetector.isInBattle()) {
