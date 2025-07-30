@@ -29,7 +29,7 @@ public class WatuTask implements ITask {
     public void initConfig(TaskContext context) {
         this.context = context;
         this.configLoader = new IniConfigLoader(context.getDeviceName());
-        
+
         // 添加配置文件路径调试信息
         String deviceId = context.getDeviceId();
         TaskStepNotifier.notifyStep(deviceId, "初始化配置文件: " + context.getDeviceName() + ".ini");
@@ -53,7 +53,6 @@ public class WatuTask implements ITask {
             }
 
             // 2. 直接获取"背包"配置项（不再需要遍历所有key）
-
             String bagConfigStr = watuProps.getProperty(KEY_BAG_MAPS, "");
             if (bagConfigStr.trim().isEmpty()) {
                 TaskStepNotifier.notifyStep(deviceId, "配置文件中[背包]信息为空");
@@ -137,32 +136,59 @@ public class WatuTask implements ITask {
     // 其他接口方法...
     @Override
     public void start(TaskContext context, TaskThread thread) throws Exception {
+        // 添加任务开始的日志
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "挖图任务开始执行");
+
         initConfig(context);
-        Luxian luxian = new Luxian(context,thread);
+        Luxian luxian = new Luxian(context, thread);
         DeviceHttpClient httpClient = new DeviceHttpClient();
-        GameStateDetector gameStateDetector = new GameStateDetector(context,httpClient);
-        CommonActions commonActions = new CommonActions(context,thread );
+        GameStateDetector gameStateDetector = new GameStateDetector(context, httpClient);
+        CommonActions commonActions = new CommonActions(context, thread);
         MovementStateDetector movementDetector = new MovementStateDetector(context, commonActions, gameStateDetector);
         Properties watuProps = configLoader.getSection(SECTION_WATU);
         int kaituwancheng = Integer.parseInt(watuProps.getProperty("开图完成"));
         int dutuwancheng = Integer.parseInt(watuProps.getProperty("读图完成"));
 
         BagMapInfo bagMapInfo;
-        int gezishu,x,y;
-        String scence,pos;
+        int gezishu, x, y;
+        String scence, pos;
         int[] jiancezuobiao;
         KaituTask kaituTask = new KaituTask();
         DutuTask dutuTask = new DutuTask();
 
+        // 关键修复：在执行前检查线程状态
+        if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "任务在开始阶段被停止");
+            return;
+        }
 
         if (kaituwancheng == 0) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "执行开图任务");
             kaituTask.start(context, thread);
+            // 检查是否被停止
+            if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "开图任务被停止");
+                return;
+            }
             configLoader.setProperty(SECTION_WATU, "开图完成", "1");
             configLoader.save();
         }
+
+        // 修复：使用 TaskThread.sleep 而不是 Thread.sleep
         TaskThread.sleep(new Random().nextInt(400) + 300);
+
+        if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "任务在读图前被停止");
+            return;
+        }
+
         if (dutuwancheng == 0) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "执行读图任务");
             dutuTask.start(context, thread);
+            if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "读图任务被停止");
+                return;
+            }
         }
 
         TaskThread.sleep(new Random().nextInt(400) + 300);
@@ -171,145 +197,223 @@ public class WatuTask implements ITask {
         qutuTask.initConfig(context);
 
         watuProps = configLoader.getSection(SECTION_WATU);
-        int baotuzongshu = Integer.parseInt(watuProps.getProperty(KEY_TOTALSHU)==null? String.valueOf(0) :watuProps.getProperty(KEY_TOTALSHU));
-        int yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU)==null? String.valueOf(0) :watuProps.getProperty(KEY_YIWASHU));
+        int baotuzongshu = Integer.parseInt(watuProps.getProperty(KEY_TOTALSHU) == null ? String.valueOf(0) : watuProps.getProperty(KEY_TOTALSHU));
+        int yiwashu = Integer.parseInt(watuProps.getProperty(KEY_YIWASHU) == null ? String.valueOf(0) : watuProps.getProperty(KEY_YIWASHU));
         int shutieLevel = Integer.parseInt(watuProps.getProperty("书铁等级"));
-        if (baotuzongshu == 0 && yiwashu == 0) {}
 
+        if (baotuzongshu == 0 && yiwashu == 0) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "宝图总数和已挖数都为0，跳过挖图");
+        }
 
-        while ((qutuTask.loadFirstTreasureMap() != null ||loadFirstBagTreasureMap() != null)
-                && (!thread.isStopped() && !Thread.currentThread().isInterrupted()) ) {
-            if (thread.isStopped() || Thread.currentThread().isInterrupted()) break;
+        // 主循环 - 增强停止检查
+        while ((qutuTask.loadFirstTreasureMap() != null || loadFirstBagTreasureMap() != null)
+                && (!thread.isStopped() && !Thread.currentThread().isInterrupted())) {
+
+            // 循环开始时立即检查
+            if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "挖图主循环被停止");
+                break;
+            }
             thread.checkPause();
+
             //判断摄妖香到期时间，并使用
             commonActions.useXiangyaoxiang();
 
             //处理背包物资
-            dealBagwuzi(shutieLevel,thread);
+            dealBagwuzi(shutieLevel, thread);
 
+            // 再次检查停止状态
+            if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "处理背包物资后任务被停止");
+                break;
+            }
 
             bagMapInfo = loadFirstBagTreasureMap();
-            if (bagMapInfo==null) {
+            if (bagMapInfo == null) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "背包中没有宝图，执行取图任务");
                 qutuTask.start(context, thread);
+                // 检查取图任务是否被停止
+                if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "取图任务被停止");
+                    break;
+                }
                 // 强制重新加载配置文件，确保获取最新数据
                 watuProps = configLoader.getSectionReload(SECTION_WATU);
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "重新加载配置文件，获取最新数据");
             }
+
             bagMapInfo = loadFirstBagTreasureMap();
             while (bagMapInfo != null) {
-                if (thread.isStopped() || Thread.currentThread().isInterrupted()) return;
+                if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "挖图循环被停止");
+                    return;
+                }
 
-                gezishu =  bagMapInfo.getBagSlot();
-                scence= bagMapInfo.getScene();
-                x= bagMapInfo.getX();
+                gezishu = bagMapInfo.getBagSlot();
+                scence = bagMapInfo.getScene();
+                x = bagMapInfo.getX();
                 y = bagMapInfo.getY();
-                pos  = x+","+y;
-                luxian.toScene(scence,pos);
+                pos = x + "," + y;
+
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        String.format("开始挖图：格子%d，场景%s，坐标(%d,%d)", gezishu, scence, x, y));
+
+                luxian.toScene(scence, pos);
+
+                // 检查是否在路线执行过程中被停止
+                if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "路线执行过程中被停止");
+                    return;
+                }
 
                 commonActions.openBag();
-                Thread.sleep(new Random().nextInt(200) + 300);
-                commonActions.doubleclickBagGrid(context.getDeviceId(),gezishu-1);//使用藏宝图
+                TaskThread.sleep(new Random().nextInt(200) + 300);
+                commonActions.doubleclickBagGrid(context.getDeviceId(), gezishu - 1);//使用藏宝图
                 watuProps = configLoader.getSection(SECTION_WATU);
-                Thread.sleep(new Random().nextInt(200) + 300);
+                TaskThread.sleep(new Random().nextInt(200) + 300);
 
                 removeBagMapBySlot(bagMapInfo);
-                System.out.println();
 
-
-                Thread.sleep(new Random().nextInt(200) + 300);
+                TaskThread.sleep(new Random().nextInt(200) + 300);
                 commonActions.closeBag();
+                TaskThread.sleep(new Random().nextInt(200) + 300);
 
-                Thread.sleep(new Random().nextInt(200) + 300);
+                // 战斗循环 - 增强停止检查
+                while (gameStateDetector.isInBattle()) {
+                    if (thread.isStopped() || Thread.currentThread().isInterrupted()) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "战斗过程中被停止");
+                        return;
+                    }
 
-                while (gameStateDetector.isInBattle()){//判断是否进入战斗
-                    TaskStepNotifier.notifyStep(context.getDeviceId(),"正在战斗中...");
-                    int[] poszhandou = DeviceHttpClient.findImages(context.getDeviceId(),"自动战斗","自动战斗","取消自动","自动战斗",0.8);
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "正在战斗中...");
+                    int[] poszhandou = DeviceHttpClient.findImages(context.getDeviceId(), "自动战斗", "自动战斗", "取消自动", "自动战斗", 0.8);
 
-                    if (poszhandou[0]>0) {
+                    if (poszhandou[0] > 0) {
                         HumanLikeController humanLikeController = new HumanLikeController(thread);
                         humanLikeController.click(context.getDeviceId(), poszhandou[0], poszhandou[1], 5, 5);
                     }
-                    Thread.sleep(new Random().nextInt(200) + 300);
-
+                    TaskThread.sleep(new Random().nextInt(200) + 300);
                 }
 
-                if (gameStateDetector.isPlayerHpLow()){
+                // 血量检查和恢复
+                if (gameStateDetector.isPlayerHpLow()) {
                     commonActions.huifuHP();
                 }
-
-
-
+                if (gameStateDetector.isPlayerMpLow()) {
+                    commonActions.huifuMP();
+                }
+                if (gameStateDetector.isPetHpLow()) {
+                    commonActions.huifuPetHP();
+                }
+                if (gameStateDetector.isPetMpLow()) {
+                    commonActions.huifuPetMP();
+                }
 
                 bagMapInfo = loadFirstBagTreasureMap();
-                    yiwashu = 1+Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
-                    configLoader.setProperty(SECTION_WATU, "已挖图数", String.valueOf(yiwashu));
-                    configLoader.save();
-                    Thread.sleep(new Random().nextInt(200) + 300);
+                yiwashu = 1 + Integer.parseInt(watuProps.getProperty(KEY_YIWASHU));
+                configLoader.setProperty(SECTION_WATU, "已挖图数", String.valueOf(yiwashu));
+                configLoader.save();
+                TaskThread.sleep(new Random().nextInt(200) + 300);
                 // 强制重新加载配置文件，确保获取最新数据
-                    watuProps = configLoader.getSectionReload(SECTION_WATU);
+                watuProps = configLoader.getSectionReload(SECTION_WATU);
             }
-
         }
+
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "挖图任务完成");
     }
 
-    private void dealBagwuzi(int shutieLevel,TaskThread thread) {
-        GameStateDetector detector = new GameStateDetector(context,new DeviceHttpClient());
-        CommonActions commonActions = new CommonActions(context,thread);
+    private void dealBagwuzi(int shutieLevel, TaskThread thread) {
+        GameStateDetector detector = new GameStateDetector(context, new DeviceHttpClient());
+        CommonActions commonActions = new CommonActions(context, thread);
         HumanLikeController humanLikeController = new HumanLikeController(thread);
         try {
-            if (!detector.isBagOpen()){
+            // 增强停止检查
+            if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "处理背包物资被停止");
+                return;
+            }
+
+            if (!detector.isBagOpen()) {
                 commonActions.openBag();
             }
-            List<Integer>gezi= commonActions.findBagItemIndex(context.getDeviceId(),"书",0.8);
-            if (gezi == null ||gezi.isEmpty()){
+            List<Integer> gezi = commonActions.findBagItemIndex(context.getDeviceId(), "书", 0.8);
+            if (gezi == null || gezi.isEmpty()) {
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "没有书");
+            } else {
+                for (int index : gezi) {
+                    if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "线程已停止或暂停，终止点击");
+                        break;
+                    }
+                    commonActions.clickBagGrid(context.getDeviceId(), index);
+                    TaskThread.sleep(new Random().nextInt(400) + 500);
+                    int[] imgdengji = DeviceHttpClient.findImage(context.getDeviceId(), "等级", 0.8);
+                    int[] rect = {imgdengji[0] + 15, imgdengji[1] - 8, imgdengji[0] + 43, imgdengji[1] + 9};
+                    String ocrshutieLevel = DeviceHttpClient.ocr(context.getDeviceId(), rect);
+                    if (Integer.parseInt(ocrshutieLevel) <= shutieLevel) {
+                        //执行丢弃
+                        int[] posdiuqi = DeviceHttpClient.findImage(context.getDeviceId(), "丢弃", 0.8);
+                        if (posdiuqi[0] > 0) {
+                            humanLikeController.click(context.getDeviceId(), posdiuqi[0], posdiuqi[1], 5, 5);
+                            TaskThread.sleep(new Random().nextInt(100) + 500);
+                            int[] shi = DeviceHttpClient.findImage(context.getDeviceId(), "是", 0.8);
+                            if (shi[0] > 0) {
+                                humanLikeController.click(context.getDeviceId(), shi[0], shi[1], 10, 5);
+                                TaskThread.sleep(new Random().nextInt(100) + 500);
+                            }
+                        }
+                        TaskThread.sleep(new Random().nextInt(400) + 300);
+                    }
+                }
             }
-            for (int index : gezi) {
-                if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "线程已停止或暂停，终止点击");
-                    break;
-                }
-                commonActions.clickBagGrid(context.getDeviceId(),index);
-                TaskThread.sleep(new Random().nextInt(400) + 300);
-                int [] rect = {1,2,3,4};
-                String ocrshutieLevel = DeviceHttpClient.ocr(context.getDeviceId(),rect);
-                if (Integer.parseInt(ocrshutieLevel) <= shutieLevel) {
-                    //执行丢弃
-                    int[] posdiuqi =DeviceHttpClient.findImage(context.getDeviceId(),"丢弃",0.8);
-                    humanLikeController.click(context.getDeviceId(), posdiuqi[0], posdiuqi[1], 5, 5);
-                    TaskThread.sleep(new Random().nextInt(400) + 300);
-                }
 
-            }
-            List<Integer>gezitie= commonActions.findBagItemIndex(context.getDeviceId(),"铁",0.8);
-            if (gezitie == null ||gezi.isEmpty()){
+            List<Integer> gezitie = commonActions.findBagItemIndex(context.getDeviceId(), "铁", 0.8);
+            if (gezitie == null || gezitie.isEmpty()) {
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "没有铁");
-            }
-            for (int index:gezitie) {
-                if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
-                    TaskStepNotifier.notifyStep(context.getDeviceId(), "线程已停止或暂停，终止点击");
-                    break;
+            } else {
+                for (int index : gezitie) {
+                    if (thread != null && (thread.isStopped() || thread.isInterrupted())) {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "线程已停止或暂停，终止点击");
+                        break;
+                    }
+                    commonActions.clickBagGrid(context.getDeviceId(), index);
+                    TaskThread.sleep(new Random().nextInt(400) + 500);
+                    int[] imgdengji = DeviceHttpClient.findImage(context.getDeviceId(), "等级", 0.8);
+                    int[] rect = {imgdengji[0] + 15, imgdengji[1] - 8, imgdengji[0] + 43, imgdengji[1] + 9};
+                    String ocrshutieLevel = DeviceHttpClient.ocr(context.getDeviceId(), rect);
+                    if (Integer.parseInt(ocrshutieLevel) <= shutieLevel) {
+                        //执行丢弃
+                        int[] posdiuqi = DeviceHttpClient.findImage(context.getDeviceId(), "丢弃", 0.8);
+                        if (posdiuqi[0] > 0) {
+                            humanLikeController.click(context.getDeviceId(), posdiuqi[0], posdiuqi[1], 5, 5);
+                            TaskThread.sleep(new Random().nextInt(100) + 500);
+                            int[] shi = DeviceHttpClient.findImage(context.getDeviceId(), "是", 0.8);
+                            if (shi[0] > 0) {
+                                humanLikeController.click(context.getDeviceId(), shi[0], shi[1], 10, 5);
+                                TaskThread.sleep(new Random().nextInt(100) + 500);
+                            }
+                        }
+                        TaskThread.sleep(new Random().nextInt(400) + 300);
+                    }
+                    else commonActions.closeBag();
                 }
-                commonActions.clickBagGrid(context.getDeviceId(),index);
-                TaskThread.sleep(new Random().nextInt(400) + 300);
-                int [] rect = {1,2,3,4};
-                String ocrshutieLevel = DeviceHttpClient.ocr(context.getDeviceId(),rect);
-                if (Integer.parseInt(ocrshutieLevel) <= shutieLevel) {
-                    //执行丢弃
-                }
-
             }
+            if (detector.isBagOpen()){commonActions.closeBag();}
 
-
+            commonActions.openJianyeCangku();
+            //打开仓库以后存物资
+            commonActions.transferBagItemsToWarehouse();
 
         } catch (Exception e) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "处理背包物资异常: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     @Override
-    public String getName() { return "挖图任务"; }
-
+    public String getName() {
+        return "挖图任务";
+    }
 
     /**
      * 根据BagMapInfo中的背包格子数，移除配置文件中对应格子的藏宝图信息

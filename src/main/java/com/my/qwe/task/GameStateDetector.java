@@ -38,8 +38,8 @@ public class GameStateDetector  {
     private static final int PET_HP_BAR_X2 = 400; // 召唤兽血条右边界
     private static final int PET_HP_BAR_Y2 = 500;
 
-    private static final double HP_LOW_THRESHOLD = 0.8; // 血量低于30%视为低血量
-    private static final double MP_LOW_THRESHOLD = 0.8; // 魔法值低于20%视为低魔法值
+    private static final double HP_LOW_THRESHOLD = 0.9;
+    private static final double MP_LOW_THRESHOLD = 0.8;
 
     public GameStateDetector(TaskContext context, DeviceHttpClient httpClient) {
         this.context = context;
@@ -179,13 +179,13 @@ public class GameStateDetector  {
      */
     public double getPlayerMpPercent() throws IOException {
         int startX = 694;
-        int y1 = 3;//需要改
-        int y2 = 7;//需要改
+        int y1 = 12;//需要改
+        int y2 = 15;//需要改
         int xStep = 4;        // 每次x增加4像素
         double percentPerStep = 10.0;  // 每4像素代表10%血量
         int maxSteps = 10;    // 最多检测10次（覆盖100%血量）
 
-        String colorPattern = "a84f4f";  // 蓝条颜色特征，需要改
+        String colorPattern = "2883e6";  // 蓝条颜色特征，需要改
         double similarity = 0.7;         // 相似度阈值
         int detectedSteps = 0;
         // 循环检测每个区域
@@ -217,7 +217,7 @@ public class GameStateDetector  {
      * 起始坐标：694,3-698,7，每向右4像素代表10%血量
      */
     public double getPetHpPercent() throws IOException {
-        int startX = 694;//需要改
+        int startX = 600;//需要改
         int y1 = 3;
         int y2 = 7;
         int xStep = 4;        // 每次x增加4像素
@@ -256,14 +256,14 @@ public class GameStateDetector  {
      * 起始坐标：694,3-698,7，每向右4像素代表10%血量
      */
     public double getPetMpPercent() throws IOException {
-        int startX = 694;//需要改
-        int y1 = 3;//需要改
-        int y2 = 7;//需要改
+        int startX = 600;//需要改
+        int y1 = 12;//需要改
+        int y2 = 15;//需要改
         int xStep = 4;        // 每次x增加4像素
         double percentPerStep = 10.0;  // 每4像素代表10%血量
         int maxSteps = 10;    // 最多检测10次（覆盖100%血量）
 
-        String colorPattern = "a84f4f";  // 蓝条颜色特征，需要改
+        String colorPattern = "2883e6";  // 蓝条颜色特征，需要改
         double similarity = 0.7;         // 相似度阈值
         int detectedSteps = 0;
         // 循环检测每个区域

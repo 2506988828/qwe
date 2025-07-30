@@ -87,6 +87,7 @@ public class Luxian {
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "准备去东海湾");
 
                 String diqu = commonActions.ocrShibieDiqu();
+                if (!diqu.equals("东海湾")){
                 if (!diqu.equals("傲来国")) {
                     commonActions.userFeixingfuToMudidi("傲来国");
                 }
@@ -126,7 +127,7 @@ public class Luxian {
                     TaskStepNotifier.notifyStep(context.getDeviceId(), "未找到确认选项，重试点击船夫（第" + retryCount + "次）");
                 }
                 TaskStepNotifier.notifyStep(context.getDeviceId(), "警告：多次尝试后仍未能到达东海湾");
-            }
+            }}
         });
         sceneHandlerMap.put("傲来国", new SceneHandler() {
             @Override

@@ -87,22 +87,62 @@ public class CommonActions {
     }
 
     /**
-     *恢复任务气血
+     *恢复人物气血
      * */
     public void huifuHP() throws IOException, InterruptedException {
         HumanLikeController human = new HumanLikeController(taskThread);
         human.click(context.getDeviceId(),715,15,9,9);
         Thread.sleep(new java.util.Random().nextInt(201) + 700);
         int[]posHP =DeviceHttpClient.findImage(context.getDeviceId(),"补充气血",0.8);
-        human.click(context.getDeviceId(),posHP[0], posHP[1],15,9);
+        if (posHP[0] > 0) {
+        human.click(context.getDeviceId(),posHP[0], posHP[1],15,9);}
         Thread.sleep(new java.util.Random().nextInt(201) + 700);
-
-
         /*human.click(context.getDeviceId(),715,15,9,9);
         Thread.sleep(new java.util.Random().nextInt(201) + 700);
         int[]posMP =DeviceHttpClient.findImage(context.getDeviceId(),"补充魔法",0.8);
         human.click(context.getDeviceId(),posMP[0], posMP[1],15,9);
         Thread.sleep(new java.util.Random().nextInt(201) + 700);*/
+    }
+    /**
+     *恢复人物MP
+     * */
+    public void huifuMP() throws IOException, InterruptedException {
+        HumanLikeController human = new HumanLikeController(taskThread);
+        human.click(context.getDeviceId(),715,15,9,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        int[]posMP =DeviceHttpClient.findImage(context.getDeviceId(),"补充魔法",0.8);
+        if (posMP[0] > 0 ) {
+        human.click(context.getDeviceId(),posMP[0], posMP[1],15,9);}
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+    }
+    /**
+     *恢复宠物气血
+     * */
+    public void huifuPetHP() throws IOException, InterruptedException {
+        HumanLikeController human = new HumanLikeController(taskThread);
+        human.click(context.getDeviceId(),621,15,9,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        int[]posHP =DeviceHttpClient.findImage(context.getDeviceId(),"补充气血",0.8);
+        if (posHP[0] > 0){
+        human.click(context.getDeviceId(),posHP[0], posHP[1],15,9);}
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        /*human.click(context.getDeviceId(),715,15,9,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        int[]posMP =DeviceHttpClient.findImage(context.getDeviceId(),"补充魔法",0.8);
+        human.click(context.getDeviceId(),posMP[0], posMP[1],15,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);*/
+    }
+    /**
+     *恢复宠物MP
+     * */
+    public void huifuPetMP() throws IOException, InterruptedException {
+        HumanLikeController human = new HumanLikeController(taskThread);
+        human.click(context.getDeviceId(),621,15,9,9);
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
+        int[]posMP =DeviceHttpClient.findImage(context.getDeviceId(),"补充魔法",0.8);
+        if (posMP[0] > 0){
+        human.click(context.getDeviceId(),posMP[0], posMP[1],15,9);}
+        Thread.sleep(new java.util.Random().nextInt(201) + 700);
     }
 
 
@@ -123,9 +163,10 @@ public class CommonActions {
                     openBag();
                 }
                 int[]posxiang = DeviceHttpClient.findImage(context.getDeviceId(),"摄妖香",0.8);
-                human.click(context.getDeviceId(),posxiang[0], posxiang[1],10,9);
+                if (posxiang[0] > 0){
+                human.doubleclick(context.getDeviceId(),posxiang[0], posxiang[1],10,9);
                 configLoader.setProperty("全局变量","摄妖香", String.valueOf(System.currentTimeMillis()+25*60*1000));
-                configLoader.save();
+                configLoader.save();}
                 Thread.sleep(new Random().nextInt(200) + 500);
                 closeBag();
 
@@ -192,7 +233,8 @@ public class CommonActions {
                 int commaIndex = diqu.indexOf(',');
                 if (commaIndex <= 0 || commaIndex >= diqu.length() - 1) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次格式错误（" + diqu + "），重试...");
-                    currentX--; // 格式错误也调整区域x坐标
+                    currentX=currentX-2; // 格式错误也调整区域x坐标
+                    baseY--;
                     Thread.sleep(500);
                     continue;
                 }
@@ -202,7 +244,8 @@ public class CommonActions {
                 String yStr = diqu.substring(commaIndex + 1);
                 if (!xStr.matches("\\d+") || !yStr.matches("\\d+")) {
                     TaskStepNotifier.notifyStep(context.getDeviceId(), "第" + retryCount + "次包含非数字（" + diqu + "），重试...");
-                    currentX--; // 非数字也调整区域x坐标
+                    currentX=currentX-2; // 非数字也调整区域x坐标
+                    baseY--;
                     Thread.sleep(500);
                     continue;
                 }
@@ -1949,6 +1992,202 @@ public class CommonActions {
 
 
 
+    /**
+     * 识别仓库页面中背包除了指定物品外的其他物品，并将其转移到仓库空格子中
+     * 如果当前页没有空格子则向下翻页继续寻找
+     */
+    public void transferBagItemsToWarehouse() {
+        TaskStepNotifier.notifyStep(context.getDeviceId(), "开始转移背包物品到仓库...");
 
+        // 需要排除的物品列表
+        String[] excludedItems = {"飞行棋", "飞行符", "红碗", "蓝碗", "摄妖香"};
+
+        try {
+            // 确保仓库界面已打开
+            if (!ifOpenCangku()) {
+                TaskStepNotifier.notifyStep(context.getDeviceId(), "仓库未打开，尝试打开仓库...");
+                openJianyeCangku();
+                Thread.sleep(waittime);
+            }
+
+            while (true) {
+                if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "任务已终止");
+                    return;
+                }
+                taskThread.checkPause();
+
+                // 1. 获取仓库界面背包中所有非空格子
+                List<Integer> allBagItems = getAllNonEmptyBagItems();
+
+                // 2. 筛选出非排除物品的格子
+                List<Integer> transferableItems = filterExcludedItems(allBagItems, excludedItems);
+
+                if (transferableItems.isEmpty()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "背包中没有可转移的物品，转移完成");
+                    break;
+                }
+
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "发现 " + transferableItems.size() + " 个可转移的物品格子");
+
+                // 3. 查找当前页仓库空格子
+                List<Integer> emptyWarehouseSlots = findEmptyCangkuIndices(context.getDeviceId());
+
+                if (emptyWarehouseSlots.isEmpty()) {
+                    TaskStepNotifier.notifyStep(context.getDeviceId(), "当前页仓库无空格子，尝试翻页...");
+
+                    // 检查是否可以翻页
+                    if (canPageDown()) {
+                        pageDown();
+                        Thread.sleep(waittime);
+                        continue; // 翻页后重新检查
+                    } else {
+                        TaskStepNotifier.notifyStep(context.getDeviceId(), "已到最后一页且无空格子，转移终止");
+                        break;
+                    }
+                }
+
+                // 4. 执行转移操作（一次转移一个物品）
+                int transferCount = Math.min(transferableItems.size(), emptyWarehouseSlots.size());
+                TaskStepNotifier.notifyStep(context.getDeviceId(),
+                        "开始转移 " + transferCount + " 个物品到仓库");
+
+                for (int i = 0; i < transferCount; i++) {
+                    if (taskThread.isStopped() || Thread.currentThread().isInterrupted()) {
+                        return;
+                    }
+                    taskThread.checkPause();
+
+                    int bagGridIndex = transferableItems.get(i);
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "转移第 " + (i + 1) + " 个物品，背包格子索引: " + bagGridIndex);
+
+                    // 双击背包格子来转移物品
+                    doubleclickcangkujiemianBagGrid(context.getDeviceId(), bagGridIndex);
+                    Thread.sleep(new Random().nextInt(300) + 500); // 随机延迟避免操作过快
+                }
+
+                // 转移完成后短暂等待，然后重新检查
+                Thread.sleep(waittime);
+            }
+
+            TaskStepNotifier.notifyStep(context.getDeviceId(), "背包物品转移到仓库完成");
+
+        } catch (Exception e) {
+            TaskStepNotifier.notifyStep(context.getDeviceId(),
+                    "转移背包物品时发生异常: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取仓库界面背包中所有非空格子的索引
+     * @return 非空格子索引列表
+     */
+    private List<Integer> getAllNonEmptyBagItems() {
+        List<Integer> nonEmptyItems = new ArrayList<>();
+        List<Integer> emptySlots = findcangkujiemianEmptyBagIndices(context.getDeviceId());
+
+        // 获取背包总格子数
+        int totalBagSlots = BagGridUtil.cangkujiemianBagGrids().size();
+
+        // 找出所有非空格子（总格子数减去空格子）
+        for (int i = 0; i < totalBagSlots; i++) {
+            if (!emptySlots.contains(i)) {
+                nonEmptyItems.add(i);
+            }
+        }
+
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "背包总格子: " + totalBagSlots + ", 空格子: " + emptySlots.size() +
+                        ", 非空格子: " + nonEmptyItems.size());
+
+        return nonEmptyItems;
+    }
+
+    /**
+     * 从非空格子中筛选出非排除物品的格子
+     * @param nonEmptyItems 所有非空格子索引
+     * @param excludedItems 需要排除的物品名称数组
+     * @return 可转移的格子索引列表
+     */
+    private List<Integer> filterExcludedItems(List<Integer> nonEmptyItems, String[] excludedItems) {
+        List<Integer> transferableItems = new ArrayList<>();
+
+        for (int gridIndex : nonEmptyItems) {
+            boolean isExcluded = false;
+
+            // 检查当前格子是否包含排除的物品
+            for (String excludedItem : excludedItems) {
+                try {
+                    // 使用现有的查找方法检查特定物品
+                    int foundIndex = findcangkujiemianFirstItemIndex(
+                            context.getDeviceId(), excludedItem, 0.8);
+
+                    if (foundIndex == gridIndex) {
+                        isExcluded = true;
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "格子 " + gridIndex + " 包含排除物品: " + excludedItem);
+                        break;
+                    }
+                } catch (Exception e) {
+                    // 如果识别失败，继续检查其他物品
+                    continue;
+                }
+            }
+
+            // 如果不是排除物品，加入可转移列表
+            if (!isExcluded) {
+                transferableItems.add(gridIndex);
+            }
+        }
+
+        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                "筛选结果: " + nonEmptyItems.size() + " 个非空格子中，" +
+                        transferableItems.size() + " 个可转移");
+
+        return transferableItems;
+    }
+
+    /**
+     * 优化版本：使用更精确的物品识别方法
+     * 通过逐个检查每个格子来确定是否为排除物品
+     */
+    private List<Integer> filterExcludedItemsAdvanced(List<Integer> nonEmptyItems, String[] excludedItems) {
+        List<Integer> transferableItems = new ArrayList<>();
+
+        for (int gridIndex : nonEmptyItems) {
+            boolean isExcluded = false;
+
+            // 对每个排除物品进行检查
+            for (String excludedItem : excludedItems) {
+                try {
+                    // 查找该排除物品的所有格子位置
+                    List<Integer> excludedItemIndices = findcangkujiemianAllItemIndices(
+                            context.getDeviceId(), excludedItem, 0.8);
+
+                    // 如果当前格子在排除物品的位置列表中
+                    if (excludedItemIndices.contains(gridIndex)) {
+                        isExcluded = true;
+                        TaskStepNotifier.notifyStep(context.getDeviceId(),
+                                "格子 " + gridIndex + " 识别为排除物品: " + excludedItem);
+                        break;
+                    }
+                } catch (Exception e) {
+                    // 识别异常时跳过该物品检查
+                    TaskStepNotifier.notifyStep(context.getDeviceId(),
+                            "检查物品 " + excludedItem + " 时发生异常: " + e.getMessage());
+                }
+            }
+
+            // 不是排除物品则加入可转移列表
+            if (!isExcluded) {
+                transferableItems.add(gridIndex);
+            }
+        }
+
+        return transferableItems;
+    }
 
 }
